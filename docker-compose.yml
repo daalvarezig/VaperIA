@@ -1,0 +1,70 @@
+version: "3.9"
+
+networks:
+  vaperia_net:
+    driver: bridge
+
+volumes:
+  evolution_store:
+  evolution_instances:
+
+services:
+  evolution:
+    image: evoapicloud/evolution-api:v2.3.7
+    container_name: vaperia_evolution
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      - SERVER_URL=${EVOLUTION_SERVER_URL}
+      - AUTHENTICATION_API_KEY=${EVOLUTION_API_KEY}
+      - AUTHENTICATION_EXPOSE_IN_FETCH_INSTANCES=true
+      - DATABASE_ENABLED=false
+      - CACHE_REDIS_ENABLED=false
+      - DEL_INSTANCE=false
+      - QRCODE_LIMIT=30
+      - LOG_LEVEL=ERROR
+      - CONFIG_SESSION_PHONE_CLIENT=VaperIA
+    volumes:
+      - evolution_store:/evolution/store
+      - evolution_instances:/evolution/instances
+    networks:
+      - vaperia_net
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: vaperia_backend
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    environment:
+      - PORT=3001
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}
+      - EVOLUTION_URL=http://evolution:8080
+      - EVOLUTION_API_KEY=${EVOLUTION_API_KEY}
+      - EVOLUTION_INSTANCE=${EVOLUTION_INSTANCE}
+      - PROFILE_ID=${PROFILE_ID}
+      - NODE_ENV=production
+    depends_on:
+      - evolution
+    networks:
+      - vaperia_net
+
+  pwa:
+    build:
+      context: ./pwa
+      dockerfile: Dockerfile
+    container_name: vaperia_pwa
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - backend
+    networks:
+      - vaperia_net
