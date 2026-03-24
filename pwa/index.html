@@ -913,33 +913,68 @@ function SetupScreen({ onDone }) {
 }
 
 // ─── DASHBOARD ───────────────────────────────────────────────────────────────
-function DashboardPage({ inventory, sales, onRestock, onRegisterSale }) {
+function ModelCard({ model }) {
+  const [open, setOpen] = React.useState(false);
+  const total = model.flavors.reduce((a, f) => a + f.stock_units, 0);
+  const cajas = Math.floor(total / 10);
+  const low = model.flavors.filter(f => f.stock_units > 0 && f.stock_units <= (f.low_stock_threshold || 5)).length;
+  const out = model.flavors.filter(f => f.stock_units === 0).length;
+  return (
+    <div style={{background:'var(--surface)',border:'1px solid var(--border)',borderRadius:'var(--radius)',marginBottom:'0.75rem',overflow:'hidden'}}>
+      <button onClick={() => setOpen(o => !o)} style={{width:'100%',background:'none',border:'none',padding:'1rem 1.1rem',display:'flex',alignItems:'center',gap:'0.75rem',cursor:'pointer',textAlign:'left'}}>
+        <div style={{flex:1}}>
+          <div style={{display:'flex',alignItems:'center',gap:'0.5rem',flexWrap:'wrap'}}>
+            <span style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:'1.2rem',fontWeight:'700',color:'var(--text)'}}>{model.code} · {model.name}</span>
+            {low > 0 && <span style={{fontSize:'0.7rem',background:'rgba(234,179,8,0.2)',color:'var(--yellow)',padding:'2px 8px',borderRadius:'10px'}}>⚠ {low} bajo</span>}
+            {out > 0 && <span style={{fontSize:'0.7rem',background:'rgba(239,68,68,0.2)',color:'var(--red)',padding:'2px 8px',borderRadius:'10px'}}>✕ {out} agotado</span>}
+          </div>
+          <div style={{fontSize:'0.75rem',color:'var(--text3)',marginTop:'0.2rem'}}>
+            {model.flavors.length} sabores · {total} uds ({cajas} cajas) · {model.cost}€/ud
+          </div>
+        </div>
+        <span style={{color:'var(--text3)',fontSize:'1.1rem',transition:'transform 0.2s',transform:open?'rotate(180deg)':'rotate(0deg)',flexShrink:0}}>▾</span>
+      </button>
+      {open && (
+        <div style={{borderTop:'1px solid var(--border)',padding:'0.5rem 0.75rem 0.75rem'}}>
+          {model.flavors.map(f => {
+            const cls = f.stock_units === 0 ? 'stock-out' : f.stock_units <= (f.low_stock_threshold || 5) ? 'stock-low' : 'stock-ok';
+            const cajas = Math.floor(f.stock_units / 10);
+            return (
+              <div key={f.flavor_id} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'0.5rem 0.25rem',borderBottom:'1px solid var(--border)'}}>
+                <div style={{fontSize:'0.85rem',color:'var(--text)',flex:1}}>{f.flavor_name}</div>
+                <div style={{display:'flex',gap:'0.4rem',alignItems:'center',flexShrink:0}}>
+                  {cajas > 0 && <span style={{fontSize:'0.7rem',color:'var(--text3)'}}>{cajas}cj</span>}
+                  <div className={`stock-badge ${cls}`}>{f.stock_units}</div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DashboardPage({ inventory, sales, onRestock }) {
   const today = new Date().toISOString().split('T')[0];
   const todaySales = sales.filter(s => s.created_at?.startsWith(today));
   const revenue = todaySales.reduce((a, s) => a + Number(s.total_amount || 0), 0);
   const margin = todaySales.reduce((a, s) => a + Number(s.total_margin || 0), 0);
   const totalUnits = todaySales.reduce((a, s) => a + (s.sale_items?.reduce((b, i) => b + i.qty, 0) || 0), 0);
-
-  const lowStock = inventory.filter(i => i.stock_units > 0 && i.stock_units <= (i.low_stock_threshold || 5));
   const outOfStock = inventory.filter(i => i.stock_units === 0);
-
-  // Group by model
+  const lowStock = inventory.filter(i => i.stock_units > 0 && i.stock_units <= (i.low_stock_threshold || 5));
   const byModel = inventory.reduce((acc, item) => {
     const k = item.model_code;
     if (!acc[k]) acc[k] = { code: k, name: item.model_name, cost: item.cost_per_unit, flavors: [] };
     acc[k].flavors.push(item);
     return acc;
   }, {});
-
   return (
     <div className="page-content">
       <div className="dashboard">
         {lowStock.length > 0 && (
-          <div className="low-stock-alert">
-            ⚠️ {lowStock.length} sabor{lowStock.length > 1 ? 'es' : ''} con stock bajo
-          </div>
+          <div className="low-stock-alert">⚠️ {lowStock.length} sabor{lowStock.length > 1 ? 'es' : ''} con stock bajo</div>
         )}
-
         <div className="section-label">Hoy</div>
         <div className="stats-grid">
           <div className="stat-card green">
@@ -963,40 +998,12 @@ function DashboardPage({ inventory, sales, onRestock, onRegisterSale }) {
             <div className="stat-sub">sabores agotados</div>
           </div>
         </div>
-
         <div className="section-label" style={{marginTop:'1.5rem'}}>Inventario</div>
-        {Object.values(byModel).map(model => (
-          <div key={model.code} className="model-section" style={{marginBottom:'1rem'}}>
-            <div className="model-header">
-              <div className="model-name">{model.code} · {model.name}</div>
-              <div className="model-cost">{model.cost}€/ud</div>
-            </div>
-            <div className="inventory-list">
-              {model.flavors.map(f => {
-                const cls = f.stock_units === 0 ? 'stock-out' : f.stock_units <= (f.low_stock_threshold || 5) ? 'stock-low' : 'stock-ok';
-                return (
-                  <div key={f.flavor_id} className="flavor-card">
-                    <div className="flavor-info">
-                      <div className="flavor-name">{f.flavor_name}</div>
-                    </div>
-                    <div style={{display:'flex',gap:'0.5rem',alignItems:'center'}}>
-                      <div className={`stock-badge ${cls}`}>{f.stock_units}</div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        ))}
-
+        {Object.values(byModel).map(model => <ModelCard key={model.code} model={model} />)}
         {inventory.length === 0 && (
-          <div className="empty-state">
-            <div className="empty-icon">📦</div>
-            <div className="empty-text">Sin inventario. Añade productos en Supabase.</div>
-          </div>
+          <div className="empty-state"><div className="empty-icon">📦</div><div className="empty-text">Sin inventario.</div></div>
         )}
       </div>
-
       <button className="fab" onClick={onRestock} title="Reponer stock">+</button>
     </div>
   );
@@ -1254,24 +1261,16 @@ function RegisterSaleModal({ inventory, onClose, onConfirm }) {
   );
 }
 
-function SalesPage({ sales, onRegisterSale, onResetSales }) {
+function SalesPage({ sales, onRegisterSale, onDeleteSale }) {
   const sorted = [...sales].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-
   return (
     <div className="page-content">
       <div className="sales-page">
         <button className="fab" onClick={onRegisterSale} title="Nueva venta" style={{bottom:'calc(70px + 1rem + var(--safe-bottom))'}}>💰</button>
-      <div style={{display:'flex',justifyContent:'flex-end',padding:'0 0 0.75rem'}}>
-        <button onClick={onResetSales} style={{
-          background:'rgba(239,68,68,0.1)',border:'1px solid rgba(239,68,68,0.3)',
-          borderRadius:'var(--radius-sm)',padding:'0.4rem 0.9rem',
-          color:'var(--red)',fontSize:'0.8rem',fontWeight:'600',cursor:'pointer',
-        }}>🗑 Borrar ventas de hoy</button>
-      </div>
-      {sorted.length === 0 ? (
+        {sorted.length === 0 ? (
           <div className="empty-state">
             <div className="empty-icon">🧾</div>
-            <div className="empty-text">Sin ventas registradas aún.<br/><span style={{fontSize:'0.8rem'}}>Pulsa 💰 para registrar una venta.</span></div>
+            <div className="empty-text">Sin ventas registradas aún.<br/><span style={{fontSize:'0.8rem'}}>Pulsa 💰 para registrar.</span></div>
           </div>
         ) : sorted.map(sale => (
           <div key={sale.id} className="sale-card">
@@ -1282,9 +1281,14 @@ function SalesPage({ sales, onRegisterSale, onResetSales }) {
                   {new Date(sale.created_at).toLocaleString('es-ES', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' })}
                 </div>
               </div>
-              <div style={{textAlign:'right'}}>
+              <div style={{textAlign:'right',display:'flex',flexDirection:'column',alignItems:'flex-end',gap:'0.2rem'}}>
                 <div className="sale-amount">{Number(sale.total_amount || 0).toFixed(2)}€</div>
                 <div className="sale-margin profit-positive">+{Number(sale.total_margin || 0).toFixed(2)}€ margen</div>
+                <button onClick={() => onDeleteSale(sale.id)} style={{
+                  background:'rgba(239,68,68,0.1)',border:'1px solid rgba(239,68,68,0.3)',
+                  borderRadius:'6px',padding:'2px 8px',color:'var(--red)',
+                  fontSize:'0.7rem',fontWeight:'600',cursor:'pointer',marginTop:'0.15rem'
+                }}>🗑 borrar</button>
               </div>
             </div>
             {sale.sale_items?.length > 0 && (
@@ -1605,13 +1609,13 @@ function App() {
     }
   };
 
-  const handleResetSales = async () => {
-    if (!confirm('¿Borrar todas las ventas de hoy? Esta acción no se puede deshacer.')) return;
+  const handleDeleteSale = async (saleId) => {
+    if (!confirm('¿Borrar esta venta?')) return;
     try {
-      const res = await fetch('/api/data/sales/today', { method: 'DELETE' });
+      const res = await fetch('/api/data/sales/' + saleId, { method: 'DELETE' });
       if (!res.ok) throw new Error('Error al borrar');
       await loadData();
-      showToast('✓ Ventas de hoy borradas');
+      showToast('✓ Venta borrada');
     } catch(e) {
       showToast('Error: ' + e.message, 'error');
     }
@@ -1662,7 +1666,7 @@ function App() {
         {tab === 'chat' && (
           <ChatPage inventory={inventory} sales={sales} settings={settings} />
         )}
-        {tab === 'sales' && <SalesPage sales={sales} onRegisterSale={() => setShowSale(true)} onResetSales={handleResetSales} />}
+        {tab === 'sales' && <SalesPage sales={sales} onRegisterSale={() => setShowSale(true)} onDeleteSale={handleDeleteSale} />}
         {tab === 'settings' && (
           <SettingsPage
             settings={settings}
