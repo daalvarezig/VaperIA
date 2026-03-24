@@ -53,6 +53,8 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     container_name: vaperia_backend
+    env_file:
+      - .env
     restart: unless-stopped
     ports:
       - "3001:3001"
