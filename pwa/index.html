@@ -1,0 +1,1553 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#0a0a0f" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="VaperIA" />
+  <link rel="manifest" href="/manifest.json" />
+  <title>VaperIA</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Barlow+Condensed:wght@300;400;600;700;900&family=Barlow:wght@300;400;500;600&display=swap" rel="stylesheet" />
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0a0a0f;
+      --bg2: #111118;
+      --bg3: #1a1a24;
+      --surface: #1e1e2e;
+      --surface2: #252535;
+      --border: rgba(255,255,255,0.08);
+      --border2: rgba(255,255,255,0.14);
+      --accent: #7c3aed;
+      --accent2: #a855f7;
+      --accent3: #c084fc;
+      --green: #22c55e;
+      --green2: #16a34a;
+      --red: #ef4444;
+      --yellow: #eab308;
+      --cyan: #06b6d4;
+      --text: #f1f0ff;
+      --text2: #a09db8;
+      --text3: #6b6880;
+      --radius: 12px;
+      --radius-sm: 8px;
+      --glow: 0 0 30px rgba(124,58,237,0.25);
+      --safe-top: env(safe-area-inset-top, 0px);
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+    }
+
+    html, body { height: 100%; background: var(--bg); color: var(--text); font-family: 'Barlow', sans-serif; overflow: hidden; }
+    #root { height: 100%; display: flex; flex-direction: column; }
+
+    /* Scrollbars */
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--accent); border-radius: 2px; }
+
+    /* GLOBAL COMPONENTS */
+    button { cursor: pointer; border: none; font-family: 'Barlow', sans-serif; transition: all 0.15s ease; }
+    input, textarea { font-family: 'Barlow', sans-serif; outline: none; }
+
+    /* SETUP SCREEN */
+    .setup-screen {
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+      background: var(--bg);
+      position: relative;
+      overflow: hidden;
+    }
+    .setup-screen::before {
+      content: '';
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: radial-gradient(ellipse at 60% 40%, rgba(124,58,237,0.12) 0%, transparent 60%),
+                  radial-gradient(ellipse at 20% 80%, rgba(6,182,212,0.06) 0%, transparent 50%);
+      pointer-events: none;
+    }
+    .setup-logo {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 4rem;
+      font-weight: 900;
+      letter-spacing: -2px;
+      background: linear-gradient(135deg, var(--accent2), var(--cyan));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 0.5rem;
+    }
+    .setup-tagline { color: var(--text2); font-size: 0.95rem; margin-bottom: 3rem; letter-spacing: 0.05em; }
+    .setup-card {
+      background: var(--surface);
+      border: 1px solid var(--border2);
+      border-radius: var(--radius);
+      padding: 2rem;
+      width: 100%;
+      max-width: 420px;
+      box-shadow: var(--glow);
+    }
+    .setup-card h2 { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 1.4rem; margin-bottom: 1.5rem; color: var(--text); }
+    .field { margin-bottom: 1.2rem; }
+    .field label { display: block; font-size: 0.8rem; font-weight: 600; color: var(--text2); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.5rem; }
+    .field input {
+      width: 100%;
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 0.75rem 1rem;
+      color: var(--text);
+      font-size: 0.9rem;
+      transition: border-color 0.2s;
+    }
+    .field input:focus { border-color: var(--accent); }
+    .field input::placeholder { color: var(--text3); }
+    .btn-primary {
+      width: 100%;
+      padding: 0.875rem;
+      background: var(--accent);
+      color: white;
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 1.1rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      border-radius: var(--radius-sm);
+      margin-top: 0.5rem;
+      text-transform: uppercase;
+    }
+    .btn-primary:hover { background: var(--accent2); transform: translateY(-1px); }
+    .btn-primary:active { transform: translateY(0); }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+    /* APP SHELL */
+    .app-shell { height: 100%; display: flex; flex-direction: column; }
+
+    /* TOP NAV */
+    .top-nav {
+      padding: calc(var(--safe-top) + 0.75rem) 1rem 0.75rem;
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+      position: relative;
+      z-index: 10;
+    }
+    .nav-logo {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 1.6rem;
+      font-weight: 900;
+      letter-spacing: -1px;
+      background: linear-gradient(135deg, var(--accent2), var(--cyan));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .nav-badge {
+      font-family: 'Space Mono', monospace;
+      font-size: 0.65rem;
+      background: var(--surface2);
+      border: 1px solid var(--border2);
+      color: var(--text2);
+      padding: 0.25rem 0.6rem;
+      border-radius: 20px;
+    }
+
+    /* TAB BAR */
+    .tab-bar {
+      display: flex;
+      background: var(--bg);
+      border-top: 1px solid var(--border);
+      padding-bottom: var(--safe-bottom);
+      flex-shrink: 0;
+    }
+    .tab-item {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 0.6rem 0.5rem;
+      background: none;
+      color: var(--text3);
+      font-size: 0.65rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      gap: 0.3rem;
+      transition: color 0.2s;
+      position: relative;
+    }
+    .tab-item.active { color: var(--accent3); }
+    .tab-item.active::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 25%;
+      right: 25%;
+      height: 2px;
+      background: var(--accent);
+      border-radius: 0 0 2px 2px;
+    }
+    .tab-icon { font-size: 1.3rem; line-height: 1; }
+
+    /* PAGE CONTENT */
+    .page-content {
+      flex: 1;
+      overflow-y: auto;
+      overflow-x: hidden;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    /* DASHBOARD */
+    .dashboard { padding: 1rem; }
+    .section-label {
+      font-family: 'Space Mono', monospace;
+      font-size: 0.65rem;
+      color: var(--text3);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 0.75rem;
+      margin-top: 1.25rem;
+    }
+    .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem 1.1rem;
+      position: relative;
+      overflow: hidden;
+    }
+    .stat-card::after {
+      content: '';
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      height: 2px;
+    }
+    .stat-card.green::after { background: var(--green); }
+    .stat-card.purple::after { background: var(--accent); }
+    .stat-card.cyan::after { background: var(--cyan); }
+    .stat-card.yellow::after { background: var(--yellow); }
+    .stat-label { font-size: 0.72rem; color: var(--text3); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.4rem; }
+    .stat-value {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 2rem;
+      font-weight: 700;
+      line-height: 1;
+      color: var(--text);
+    }
+    .stat-sub { font-size: 0.75rem; color: var(--text2); margin-top: 0.25rem; }
+
+    /* INVENTORY CARDS */
+    .inventory-list { display: flex; flex-direction: column; gap: 0.75rem; }
+    .model-section { margin-bottom: 0.5rem; }
+    .model-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 0.5rem;
+    }
+    .model-name {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: var(--text);
+    }
+    .model-cost { font-size: 0.8rem; color: var(--text3); font-family: 'Space Mono', monospace; }
+    .flavor-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 0.75rem 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .flavor-info { display: flex; flex-direction: column; gap: 0.15rem; }
+    .flavor-name { font-size: 0.95rem; font-weight: 500; color: var(--text); }
+    .flavor-model-tag { font-size: 0.7rem; color: var(--text3); }
+    .stock-badge {
+      font-family: 'Space Mono', monospace;
+      font-size: 0.85rem;
+      font-weight: 700;
+      padding: 0.25rem 0.6rem;
+      border-radius: 6px;
+      min-width: 48px;
+      text-align: center;
+    }
+    .stock-ok { background: rgba(34,197,94,0.15); color: var(--green); border: 1px solid rgba(34,197,94,0.3); }
+    .stock-low { background: rgba(234,179,8,0.15); color: var(--yellow); border: 1px solid rgba(234,179,8,0.3); }
+    .stock-out { background: rgba(239,68,68,0.15); color: var(--red); border: 1px solid rgba(239,68,68,0.3); }
+
+    /* CHAT */
+    .chat-container { display: flex; flex-direction: column; height: 100%; }
+    .chat-header {
+      padding: 0.875rem 1rem;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      background: var(--bg2);
+      flex-shrink: 0;
+    }
+    .chat-avatar {
+      width: 38px; height: 38px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent), var(--cyan));
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.2rem;
+      flex-shrink: 0;
+    }
+    .chat-status { display: flex; flex-direction: column; }
+    .chat-name { font-weight: 600; font-size: 0.95rem; }
+    .chat-online { font-size: 0.75rem; color: var(--green); }
+    .mode-toggle {
+      margin-left: auto;
+      display: flex;
+      background: var(--surface);
+      border-radius: 20px;
+      padding: 3px;
+      border: 1px solid var(--border);
+    }
+    .mode-btn {
+      padding: 0.3rem 0.75rem;
+      border-radius: 16px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text3);
+      background: none;
+    }
+    .mode-btn.active { background: var(--accent); color: white; }
+
+    .messages-area {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      -webkit-overflow-scrolling: touch;
+    }
+    .msg-row { display: flex; flex-direction: column; }
+    .msg-row.user { align-items: flex-end; }
+    .msg-row.assistant { align-items: flex-start; }
+    .msg-bubble {
+      max-width: 80%;
+      padding: 0.65rem 0.9rem;
+      border-radius: 16px;
+      font-size: 0.92rem;
+      line-height: 1.5;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .msg-row.user .msg-bubble {
+      background: var(--accent);
+      color: white;
+      border-bottom-right-radius: 4px;
+    }
+    .msg-row.assistant .msg-bubble {
+      background: var(--surface2);
+      color: var(--text);
+      border-bottom-left-radius: 4px;
+      border: 1px solid var(--border);
+    }
+    .msg-time { font-size: 0.65rem; color: var(--text3); margin-top: 0.25rem; padding: 0 0.25rem; }
+    .typing-indicator { display: flex; gap: 4px; padding: 0.75rem 1rem; background: var(--surface2); border-radius: 16px; border-bottom-left-radius: 4px; border: 1px solid var(--border); width: fit-content; }
+    .typing-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--text3); animation: bounce 1.2s infinite; }
+    .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+    .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes bounce { 0%,80%,100%{transform:translateY(0)} 40%{transform:translateY(-8px)} }
+
+    .chat-input-area {
+      padding: 0.75rem 1rem;
+      border-top: 1px solid var(--border);
+      display: flex;
+      gap: 0.5rem;
+      background: var(--bg2);
+      flex-shrink: 0;
+      padding-bottom: calc(0.75rem + var(--safe-bottom));
+    }
+    .chat-input {
+      flex: 1;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 22px;
+      padding: 0.65rem 1rem;
+      color: var(--text);
+      font-size: 0.92rem;
+      resize: none;
+      max-height: 120px;
+      line-height: 1.4;
+    }
+    .chat-input:focus { border-color: var(--accent); }
+    .chat-input::placeholder { color: var(--text3); }
+    .send-btn {
+      width: 42px; height: 42px;
+      border-radius: 50%;
+      background: var(--accent);
+      color: white;
+      font-size: 1.1rem;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      align-self: flex-end;
+    }
+    .send-btn:hover { background: var(--accent2); }
+    .send-btn:disabled { opacity: 0.4; }
+
+    /* QUICK ACTIONS */
+    .quick-actions {
+      display: flex;
+      gap: 0.5rem;
+      overflow-x: auto;
+      padding: 0 1rem 0.5rem;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+    }
+    .quick-actions::-webkit-scrollbar { display: none; }
+    .qa-chip {
+      flex-shrink: 0;
+      background: var(--surface);
+      border: 1px solid var(--border2);
+      border-radius: 20px;
+      padding: 0.4rem 0.9rem;
+      font-size: 0.8rem;
+      color: var(--text2);
+      white-space: nowrap;
+    }
+    .qa-chip:hover { background: var(--surface2); color: var(--text); border-color: var(--accent); }
+
+    /* SALES PAGE */
+    .sales-page { padding: 1rem; }
+    .sale-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem;
+      margin-bottom: 0.75rem;
+    }
+    .sale-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.5rem; }
+    .sale-id { font-family: 'Space Mono', monospace; font-size: 0.75rem; color: var(--text3); }
+    .sale-amount {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: var(--green);
+    }
+    .sale-margin { font-size: 0.8rem; color: var(--text2); }
+    .sale-items-list { display: flex; flex-direction: column; gap: 0.3rem; margin-top: 0.5rem; }
+    .sale-item-row { font-size: 0.85rem; color: var(--text2); display: flex; justify-content: space-between; }
+
+    /* MODAL */
+    .modal-overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.7);
+      backdrop-filter: blur(4px);
+      display: flex; align-items: flex-end;
+      z-index: 100;
+      animation: fadeIn 0.15s ease;
+    }
+    @keyframes fadeIn { from{opacity:0} to{opacity:1} }
+    .modal-sheet {
+      width: 100%;
+      background: var(--bg2);
+      border-top: 1px solid var(--border2);
+      border-radius: 20px 20px 0 0;
+      padding: 1.5rem 1.25rem calc(1.5rem + var(--safe-bottom));
+      max-height: 90vh;
+      overflow-y: auto;
+      animation: slideUp 0.2s ease;
+    }
+    @keyframes slideUp { from{transform:translateY(100%)} to{transform:translateY(0)} }
+    .modal-handle { width: 40px; height: 4px; background: var(--border2); border-radius: 2px; margin: 0 auto 1.25rem; }
+    .modal-title { font-family: 'Barlow Condensed', sans-serif; font-size: 1.4rem; font-weight: 700; margin-bottom: 1.25rem; }
+    .modal-options { display: flex; flex-direction: column; gap: 0.5rem; }
+    .modal-option {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 0.875rem 1rem;
+      text-align: left;
+      color: var(--text);
+      font-size: 0.95rem;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .modal-option:hover { border-color: var(--accent); background: var(--surface2); }
+    .modal-option.selected { border-color: var(--accent); background: rgba(124,58,237,0.15); color: var(--accent3); }
+    .modal-actions { display: flex; gap: 0.75rem; margin-top: 1.25rem; }
+    .btn-secondary {
+      flex: 1; padding: 0.8rem;
+      background: var(--surface);
+      border: 1px solid var(--border2);
+      border-radius: var(--radius-sm);
+      color: var(--text2);
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 1rem; font-weight: 700;
+      text-transform: uppercase;
+    }
+    .btn-confirm {
+      flex: 2; padding: 0.8rem;
+      background: var(--accent);
+      border-radius: var(--radius-sm);
+      color: white;
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 1rem; font-weight: 700;
+      text-transform: uppercase;
+    }
+    .btn-confirm:hover { background: var(--accent2); }
+    .btn-confirm:disabled { opacity: 0.4; }
+
+    /* TOAST */
+    .toast {
+      position: fixed;
+      bottom: calc(70px + var(--safe-bottom));
+      left: 50%; transform: translateX(-50%);
+      background: var(--surface2);
+      border: 1px solid var(--border2);
+      border-radius: 20px;
+      padding: 0.6rem 1.25rem;
+      font-size: 0.85rem;
+      font-weight: 500;
+      white-space: nowrap;
+      z-index: 200;
+      animation: toastIn 0.2s ease, toastOut 0.2s ease 2.3s forwards;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    }
+    .toast.success { color: var(--green); border-color: rgba(34,197,94,0.3); }
+    .toast.error { color: var(--red); border-color: rgba(239,68,68,0.3); }
+    @keyframes toastIn { from{opacity:0;transform:translateX(-50%) translateY(10px)} to{opacity:1;transform:translateX(-50%) translateY(0)} }
+    @keyframes toastOut { from{opacity:1} to{opacity:0} }
+
+    /* EMPTY STATE */
+    .empty-state { text-align: center; padding: 3rem 2rem; color: var(--text3); }
+    .empty-icon { font-size: 3rem; margin-bottom: 1rem; }
+    .empty-text { font-size: 0.9rem; }
+
+    /* FAB */
+    .fab {
+      position: fixed;
+      bottom: calc(70px + 1rem + var(--safe-bottom));
+      right: 1rem;
+      width: 52px; height: 52px;
+      border-radius: 50%;
+      background: var(--accent);
+      color: white;
+      font-size: 1.5rem;
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 4px 20px rgba(124,58,237,0.5);
+      z-index: 50;
+      transition: all 0.2s;
+    }
+    .fab:hover { transform: scale(1.08); box-shadow: 0 6px 28px rgba(124,58,237,0.65); }
+    .fab:active { transform: scale(0.95); }
+
+    /* RESTOCK */
+    .restock-form { display: flex; flex-direction: column; gap: 1rem; }
+    .qty-input {
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 0.75rem 1rem;
+      color: var(--text);
+      font-size: 1.1rem;
+      font-family: 'Space Mono', monospace;
+      width: 100%;
+      text-align: center;
+    }
+    .qty-input:focus { border-color: var(--accent); }
+
+    /* LOADING */
+    .loading-screen {
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 1rem;
+    }
+    .spinner {
+      width: 36px; height: 36px;
+      border: 3px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading-text { font-family: 'Space Mono', monospace; font-size: 0.8rem; color: var(--text3); }
+
+    /* Scrollable sections */
+    .scroll-section { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .settings-section { padding: 1rem; }
+    .settings-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      margin-bottom: 1rem;
+    }
+    .settings-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 1rem 1.1rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .settings-row:last-child { border-bottom: none; }
+    .settings-label { font-size: 0.95rem; font-weight: 500; }
+    .settings-desc { font-size: 0.78rem; color: var(--text3); margin-top: 0.1rem; }
+    .toggle {
+      position: relative;
+      width: 46px; height: 26px;
+      background: var(--border2);
+      border-radius: 13px;
+      cursor: pointer;
+      transition: background 0.2s;
+      border: none;
+      flex-shrink: 0;
+    }
+    .toggle.on { background: var(--accent); }
+    .toggle::after {
+      content: '';
+      position: absolute;
+      top: 3px; left: 3px;
+      width: 20px; height: 20px;
+      border-radius: 50%;
+      background: white;
+      transition: transform 0.2s;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+    }
+    .toggle.on::after { transform: translateX(20px); }
+
+    .low-stock-alert {
+      background: rgba(234,179,8,0.1);
+      border: 1px solid rgba(234,179,8,0.3);
+      border-radius: var(--radius-sm);
+      padding: 0.75rem 1rem;
+      margin-bottom: 0.75rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.85rem;
+      color: var(--yellow);
+    }
+
+    .profit-positive { color: var(--green); }
+    .profit-negative { color: var(--red); }
+  </style>
+</head>
+<body>
+<div id="root"></div>
+
+<script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
+<script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+
+<script type="text/babel">
+const { useState, useEffect, useRef, useCallback } = React;
+
+// ─── CONFIG ────────────────────────────────────────────────────────────────
+const CFG = {
+  SUPABASE_URL: localStorage.getItem('vpr_url') || '',
+  SUPABASE_KEY: localStorage.getItem('vpr_key') || '',
+  PROFILE_ID:   localStorage.getItem('vpr_pid') || '',
+};
+
+// ─── SUPABASE CLIENT ────────────────────────────────────────────────────────
+const sb = {
+  async fetch(path, opts = {}) {
+    const url = `${CFG.SUPABASE_URL}/rest/v1${path}`;
+    const res = await fetch(url, {
+      ...opts,
+      headers: {
+        'apikey': CFG.SUPABASE_KEY,
+        'Authorization': `Bearer ${CFG.SUPABASE_KEY}`,
+        'Content-Type': 'application/json',
+        'Prefer': opts.prefer || 'return=representation',
+        ...(opts.headers || {}),
+      },
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || `HTTP ${res.status}`);
+    }
+    return res.status === 204 ? null : res.json();
+  },
+
+  get: (path, q = '') => sb.fetch(`${path}${q}`),
+
+  post: (path, body) => sb.fetch(path, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  }),
+
+  patch: (path, body, q = '') => sb.fetch(`${path}${q}`, {
+    method: 'PATCH',
+    body: JSON.stringify(body),
+    prefer: 'return=minimal',
+  }),
+
+  rpc: (fn, body) => fetch(`${CFG.SUPABASE_URL}/rest/v1/rpc/${fn}`, {
+    method: 'POST',
+    headers: {
+      'apikey': CFG.SUPABASE_KEY,
+      'Authorization': `Bearer ${CFG.SUPABASE_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  }).then(r => r.json()),
+};
+
+// ─── ANTHROPIC (VaperIA brain) ───────────────────────────────────────────────
+async function askVaperIA(messages, mode, inventory, sales) {
+  const systemPrompt = mode === 'owner'
+    ? buildOwnerPrompt(inventory, sales)
+    : buildCustomerPrompt(inventory);
+
+  const res = await fetch('/api/chat', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ messages, system: systemPrompt }),
+  });
+
+  if (!res.ok) throw new Error('Error al conectar con VaperIA');
+  const data = await res.json();
+  return data.content?.[0]?.text || 'Sin respuesta.';
+}
+
+// Llamada directa a Anthropic API
+async function callClaude(messages, _systemPrompt, mode) {
+  // Llama al backend propio (nginx proxy: /api → backend:3001)
+  // La API key de Anthropic vive en el backend, no en el frontend
+  const res = await fetch('/api/chat', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ messages, mode: mode || 'customer' }),
+  });
+  if (!res.ok) throw new Error('Backend error: ' + res.status);
+  const data = await res.json();
+  return data.reply || '¿Puedes repetir?';
+}
+
+function buildOwnerPrompt(inventory, sales) {
+  const invSummary = inventory.map(i =>
+    `${i.model_code} - ${i.flavor_name}: ${i.stock_units} uds (coste: ${i.cost_per_unit}€)`
+  ).join('\n');
+
+  const today = new Date().toLocaleDateString('es-ES');
+  const todaySales = sales.filter(s => s.created_at?.startsWith(new Date().toISOString().split('T')[0]));
+  const todayRevenue = todaySales.reduce((a, s) => a + (s.total_amount || 0), 0);
+  const todayMargin = todaySales.reduce((a, s) => a + (s.total_margin || 0), 0);
+
+  return `Eres VaperIA, el asistente interno de gestión de un negocio de vapes.
+
+## MODO: INTERNO (PROPIETARIO)
+- Responde de forma eficiente, estructurada y concisa
+- Entiende comandos naturales como "vende 2 mango 40K", "stock?", "profit hoy"
+
+## INVENTARIO ACTUAL (${today}):
+${invSummary || 'Sin datos de inventario aún.'}
+
+## VENTAS HOY:
+- Ingresos: ${todayRevenue.toFixed(2)}€
+- Margen: ${todayMargin.toFixed(2)}€
+- Nº ventas: ${todaySales.length}
+
+## REGLAS DE PRECIOS:
+1–10 uds → 14€/ud
+10–50 uds → 12€/ud
+50–100 uds → 11€/ud
+100–500 uds → 10€/ud
+
+## MODELOS:
+- 40K (King Pro): coste 5.70€/ud
+- 80K (Quads): coste 7.00€/ud
+
+## LÓGICA DE VENTAS:
+profit = (precio_venta - coste) * cantidad
+
+## LÓGICA DE PICKUP:
+- Para pedidos < 10 uds → sugerir recogida en persona
+- Puntos de recogida:
+  • Puerta del Sur (Alcorcón) → 14:45–15:00
+  • Calle 8 de Marzo 212, Alcorcón → 16:15–16:30
+
+Cuando registres una venta, confirma siempre antes de guardar.
+Si faltan datos (modelo, sabor, cantidad, precio), pregunta paso a paso.
+Responde siempre en español.`;
+}
+
+function buildCustomerPrompt(inventory) {
+  const available = inventory.filter(i => i.stock_units > 0).map(i =>
+    `${i.model_code} ${i.flavor_name} (${i.stock_units} uds)`
+  ).join(', ');
+
+  const low = inventory.filter(i => i.stock_units > 0 && i.stock_units <= 5).map(i =>
+    `${i.model_code} ${i.flavor_name}`
+  );
+
+  return `Eres VaperIA en modo cliente, un asistente de ventas por WhatsApp para un negocio de vapes.
+
+## TONO: casual, juvenil, en español de España
+- Usa: "bro", "te renta", "esto vuela", "pillo", "está petado", "qué dices"
+- Emojis moderados: 🔥 👀 💨 ✅ 🤙
+
+## DISPONIBILIDAD:
+${available || 'Consultando stock...'}
+
+${low.length > 0 ? `## CASI AGOTADO (crea urgencia):
+${low.join(', ')}` : ''}
+
+## PRECIOS (sugerir siempre más cantidad):
+1–10 uds → 14€/ud
+10–50 uds → 12€/ud
+50–100 uds → 11€/ud
+
+## RECOGIDA (para pedidos < 10 uds):
+- Puerta del Sur (Alcorcón) → 14:45–15:00
+- Calle 8 de Marzo 212, Alcorcón → 16:15–16:30
+
+## IMPORTANTE:
+- WhatsApp NO es checkout — prepara pedidos, no vendas directamente
+- Usa frases como "te lo guardo", "te lo preparo", "cuando llegues lo cerramos"
+- Haz upsell cuando puedas (más cantidad = mejor precio)
+- Si el stock es bajo, crea urgencia
+
+Responde siempre en español casual.`;
+}
+
+// ─── TOAST ──────────────────────────────────────────────────────────────────
+function Toast({ msg, type, onDone }) {
+  useEffect(() => { const t = setTimeout(onDone, 2500); return () => clearTimeout(t); }, []);
+  return <div className={`toast ${type}`}>{msg}</div>;
+}
+
+// ─── SETUP SCREEN ───────────────────────────────────────────────────────────
+function SetupScreen({ onDone }) {
+  const [url, setUrl] = useState('');
+  const [key, setKey] = useState('');
+  const [pid, setPid] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const save = async () => {
+    if (!url || !key) { setError('URL y API Key son obligatorios'); return; }
+    setLoading(true); setError('');
+    try {
+      // Verificar conexión
+      CFG.SUPABASE_URL = url.replace(/\/$/, '');
+      CFG.SUPABASE_KEY = key;
+      CFG.PROFILE_ID = pid;
+
+      const test = await sb.get('/profiles', '?limit=1');
+      const profile = pid ? test.find(p => p.id === pid) || test[0] : test[0];
+
+      if (!profile && !pid) throw new Error('No se encontró ningún perfil. Crea uno primero en Supabase.');
+
+      const finalPid = pid || profile.id;
+      CFG.PROFILE_ID = finalPid;
+
+      localStorage.setItem('vpr_url', CFG.SUPABASE_URL);
+      localStorage.setItem('vpr_key', CFG.SUPABASE_KEY);
+      localStorage.setItem('vpr_pid', finalPid);
+
+      onDone();
+    } catch (e) {
+      setError(e.message || 'Error de conexión');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="setup-screen">
+      <div className="setup-logo">VaperIA</div>
+      <div className="setup-tagline">Conecta tu negocio 💨</div>
+
+      <div className="setup-card">
+        <h2>Configuración inicial</h2>
+
+        <div className="field">
+          <label>Supabase URL</label>
+          <input
+            type="url"
+            placeholder="https://xxx.supabase.co"
+            value={url}
+            onChange={e => setUrl(e.target.value)}
+          />
+        </div>
+
+        <div className="field">
+          <label>Anon Key</label>
+          <input
+            type="password"
+            placeholder="eyJhbGci..."
+            value={key}
+            onChange={e => setKey(e.target.value)}
+          />
+        </div>
+
+        <div className="field">
+          <label>Profile ID (opcional)</label>
+          <input
+            type="text"
+            placeholder="Se detecta automáticamente"
+            value={pid}
+            onChange={e => setPid(e.target.value)}
+          />
+        </div>
+
+        {error && <div style={{color:'var(--red)',fontSize:'0.85rem',marginBottom:'0.75rem'}}>⚠ {error}</div>}
+
+        <button className="btn-primary" onClick={save} disabled={loading}>
+          {loading ? 'Conectando...' : 'Conectar →'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── DASHBOARD ───────────────────────────────────────────────────────────────
+function DashboardPage({ inventory, sales, onRestock, onRegisterSale }) {
+  const today = new Date().toISOString().split('T')[0];
+  const todaySales = sales.filter(s => s.created_at?.startsWith(today));
+  const revenue = todaySales.reduce((a, s) => a + Number(s.total_amount || 0), 0);
+  const margin = todaySales.reduce((a, s) => a + Number(s.total_margin || 0), 0);
+  const totalUnits = todaySales.reduce((a, s) => a + (s.sale_items?.reduce((b, i) => b + i.qty, 0) || 0), 0);
+
+  const lowStock = inventory.filter(i => i.stock_units > 0 && i.stock_units <= (i.low_stock_threshold || 5));
+  const outOfStock = inventory.filter(i => i.stock_units === 0);
+
+  // Group by model
+  const byModel = inventory.reduce((acc, item) => {
+    const k = item.model_code;
+    if (!acc[k]) acc[k] = { code: k, name: item.model_name, cost: item.cost_per_unit, flavors: [] };
+    acc[k].flavors.push(item);
+    return acc;
+  }, {});
+
+  return (
+    <div className="page-content">
+      <div className="dashboard">
+        {lowStock.length > 0 && (
+          <div className="low-stock-alert">
+            ⚠️ {lowStock.length} sabor{lowStock.length > 1 ? 'es' : ''} con stock bajo
+          </div>
+        )}
+
+        <div className="section-label">Hoy</div>
+        <div className="stats-grid">
+          <div className="stat-card green">
+            <div className="stat-label">Ingresos</div>
+            <div className="stat-value">{revenue.toFixed(0)}€</div>
+            <div className="stat-sub">{todaySales.length} ventas</div>
+          </div>
+          <div className="stat-card purple">
+            <div className="stat-label">Margen</div>
+            <div className="stat-value">{margin.toFixed(0)}€</div>
+            <div className="stat-sub">{revenue > 0 ? ((margin/revenue)*100).toFixed(0) : 0}% rentab.</div>
+          </div>
+          <div className="stat-card cyan">
+            <div className="stat-label">Unidades</div>
+            <div className="stat-value">{totalUnits}</div>
+            <div className="stat-sub">vendidas hoy</div>
+          </div>
+          <div className="stat-card yellow">
+            <div className="stat-label">Sin stock</div>
+            <div className="stat-value">{outOfStock.length}</div>
+            <div className="stat-sub">sabores agotados</div>
+          </div>
+        </div>
+
+        <div className="section-label" style={{marginTop:'1.5rem'}}>Inventario</div>
+        {Object.values(byModel).map(model => (
+          <div key={model.code} className="model-section" style={{marginBottom:'1rem'}}>
+            <div className="model-header">
+              <div className="model-name">{model.code} · {model.name}</div>
+              <div className="model-cost">{model.cost}€/ud</div>
+            </div>
+            <div className="inventory-list">
+              {model.flavors.map(f => {
+                const cls = f.stock_units === 0 ? 'stock-out' : f.stock_units <= (f.low_stock_threshold || 5) ? 'stock-low' : 'stock-ok';
+                return (
+                  <div key={f.flavor_id} className="flavor-card">
+                    <div className="flavor-info">
+                      <div className="flavor-name">{f.flavor_name}</div>
+                    </div>
+                    <div style={{display:'flex',gap:'0.5rem',alignItems:'center'}}>
+                      <div className={`stock-badge ${cls}`}>{f.stock_units}</div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+
+        {inventory.length === 0 && (
+          <div className="empty-state">
+            <div className="empty-icon">📦</div>
+            <div className="empty-text">Sin inventario. Añade productos en Supabase.</div>
+          </div>
+        )}
+      </div>
+
+      <button className="fab" onClick={onRestock} title="Reponer stock">+</button>
+    </div>
+  );
+}
+
+// ─── CHAT PAGE ───────────────────────────────────────────────────────────────
+function ChatPage({ inventory, sales, settings }) {
+  const [mode, setMode] = useState('customer'); // owner | customer
+  const [messages, setMessages] = useState([]);
+  const [input, setInput] = useState('');
+  const [loading, setLoading] = useState(false);
+  const bottomRef = useRef(null);
+  const inputRef = useRef(null);
+
+  const WELCOME = {
+    owner: '¡Hola! Soy VaperIA en modo interno 🧠\n\nPuedo ayudarte con:\n• "stock?" → ver inventario\n• "profit hoy" → margen del día\n• "vende 2 mango 40K" → registrar venta\n• "reponer 10 mint 40K a 5.7€" → entrada de stock',
+    customer: '¡Qué pasa bro! 💨 Soy el asistente de VaperIA.\n\n¿Qué estás buscando hoy? Dime el sabor que te mola y te cuento qué tenemos 🔥',
+  };
+
+  useEffect(() => {
+    setMessages([{ role: 'assistant', content: WELCOME[mode], ts: Date.now() }]);
+  }, [mode]);
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, loading]);
+
+  const send = useCallback(async (text) => {
+    const msg = text || input.trim();
+    if (!msg || loading) return;
+    setInput('');
+
+    const userMsg = { role: 'user', content: msg, ts: Date.now() };
+    const history = [...messages, userMsg];
+    setMessages(history);
+    setLoading(true);
+
+    try {
+      const apiMessages = history.slice(-10).map(m => ({
+        role: m.role === 'assistant' ? 'assistant' : 'user',
+        content: m.content,
+      }));
+
+      const sysPrompt = mode === 'owner'
+        ? buildOwnerPrompt(inventory, sales)
+        : buildCustomerPrompt(inventory);
+
+      const reply = await callClaude(apiMessages, sysPrompt, mode);
+      setMessages(prev => [...prev, { role: 'assistant', content: reply, ts: Date.now() }]);
+    } catch (e) {
+      setMessages(prev => [...prev, {
+        role: 'assistant',
+        content: '⚠️ Error al conectar con VaperIA. Comprueba tu configuración.',
+        ts: Date.now(),
+      }]);
+    } finally {
+      setLoading(false);
+      inputRef.current?.focus();
+    }
+  }, [input, messages, loading, mode, inventory, sales]);
+
+  const handleKey = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
+  };
+
+  const QUICK_OWNER = ['stock?', 'profit hoy', 'ventas semana', 'low stock?'];
+  const QUICK_CUST  = ['¿Qué tenéis?', 'Mango disponible?', '¿Precio por 5?', '¿Dónde recogida?'];
+  const quickItems = mode === 'owner' ? QUICK_OWNER : QUICK_CUST;
+
+  const fmt = (ts) => new Date(ts).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+
+  return (
+    <div className="chat-container" style={{height:'100%'}}>
+      <div className="chat-header">
+        <div className="chat-avatar">💨</div>
+        <div className="chat-status">
+          <div className="chat-name">VaperIA</div>
+          <div className="chat-online">● online</div>
+        </div>
+        <div className="mode-toggle">
+          <button className={`mode-btn ${mode === 'customer' ? 'active' : ''}`} onClick={() => setMode('customer')}>Cliente</button>
+          <button className={`mode-btn ${mode === 'owner' ? 'active' : ''}`} onClick={() => setMode('owner')}>Interno</button>
+        </div>
+      </div>
+
+      <div className="quick-actions">
+        {quickItems.map(q => (
+          <button key={q} className="qa-chip" onClick={() => send(q)}>{q}</button>
+        ))}
+      </div>
+
+      <div className="messages-area">
+        {messages.map((m, i) => (
+          <div key={i} className={`msg-row ${m.role === 'user' ? 'user' : 'assistant'}`}>
+            <div className="msg-bubble">{m.content}</div>
+            <div className="msg-time">{fmt(m.ts)}</div>
+          </div>
+        ))}
+        {loading && (
+          <div className="msg-row assistant">
+            <div className="typing-indicator">
+              <div className="typing-dot" />
+              <div className="typing-dot" />
+              <div className="typing-dot" />
+            </div>
+          </div>
+        )}
+        <div ref={bottomRef} />
+      </div>
+
+      <div className="chat-input-area">
+        <textarea
+          ref={inputRef}
+          className="chat-input"
+          placeholder={mode === 'owner' ? 'Escribe un comando...' : 'Escribe tu mensaje...'}
+          value={input}
+          onChange={e => setInput(e.target.value)}
+          onKeyDown={handleKey}
+          rows={1}
+        />
+        <button className="send-btn" onClick={() => send()} disabled={!input.trim() || loading}>➤</button>
+      </div>
+    </div>
+  );
+}
+
+// ─── SALES PAGE ──────────────────────────────────────────────────────────────
+function SalesPage({ sales }) {
+  const sorted = [...sales].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+  return (
+    <div className="page-content">
+      <div className="sales-page">
+        {sorted.length === 0 ? (
+          <div className="empty-state">
+            <div className="empty-icon">🧾</div>
+            <div className="empty-text">Sin ventas registradas aún.</div>
+          </div>
+        ) : sorted.map(sale => (
+          <div key={sale.id} className="sale-card">
+            <div className="sale-header">
+              <div>
+                <div className="sale-id">#{sale.id.slice(-6).toUpperCase()}</div>
+                <div style={{fontSize:'0.8rem',color:'var(--text3)',marginTop:'0.2rem'}}>
+                  {new Date(sale.created_at).toLocaleString('es-ES', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' })}
+                </div>
+              </div>
+              <div style={{textAlign:'right'}}>
+                <div className="sale-amount">{Number(sale.total_amount || 0).toFixed(2)}€</div>
+                <div className="sale-margin profit-positive">+{Number(sale.total_margin || 0).toFixed(2)}€ margen</div>
+              </div>
+            </div>
+            {sale.sale_items?.length > 0 && (
+              <div className="sale-items-list">
+                {sale.sale_items.map((item, i) => (
+                  <div key={i} className="sale-item-row">
+                    <span>{item.qty}× {item.model_code} {item.flavor_name}</span>
+                    <span>{Number(item.line_total || 0).toFixed(2)}€</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─── SETTINGS PAGE ───────────────────────────────────────────────────────────
+function SettingsPage({ settings, onUpdateSettings, onLogout }) {
+  const s = settings || {};
+
+  const toggle = async (key) => {
+    try {
+      await sb.patch('/settings', { [key]: !s[key] }, `?profile_id=eq.${CFG.PROFILE_ID}`);
+      onUpdateSettings({ ...s, [key]: !s[key] });
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  return (
+    <div className="page-content">
+      <div className="settings-section">
+        <div className="section-label">Configuración</div>
+
+        <div className="settings-card">
+          <div className="settings-row">
+            <div>
+              <div className="settings-label">Sugerencias inteligentes</div>
+              <div className="settings-desc">Alertas de stock bajo y upsell automático</div>
+            </div>
+            <button className={`toggle ${s.suggestions_enabled ? 'on' : ''}`}
+              onClick={() => toggle('suggestions_enabled')} />
+          </div>
+          <div className="settings-row">
+            <div>
+              <div className="settings-label">Tono juvenil (modo cliente)</div>
+              <div className="settings-desc">Slang casual para WhatsApp</div>
+            </div>
+            <button className={`toggle ${s.teen_tone_enabled !== false ? 'on' : ''}`}
+              onClick={() => toggle('teen_tone_enabled')} />
+          </div>
+          <div className="settings-row">
+            <div>
+              <div className="settings-label">Alerta stock bajo</div>
+              <div className="settings-desc">Notificación automática al bajar del umbral</div>
+            </div>
+            <button className={`toggle ${s.auto_low_stock_alert ? 'on' : ''}`}
+              onClick={() => toggle('auto_low_stock_alert')} />
+          </div>
+        </div>
+
+        <div className="settings-card">
+          <div className="settings-row">
+            <div>
+              <div className="settings-label">Profile ID</div>
+              <div className="settings-desc" style={{fontFamily:'monospace',fontSize:'0.72rem'}}>{CFG.PROFILE_ID || '-'}</div>
+            </div>
+          </div>
+          <div className="settings-row">
+            <div>
+              <div className="settings-label">Supabase URL</div>
+              <div className="settings-desc" style={{fontFamily:'monospace',fontSize:'0.72rem'}}>{CFG.SUPABASE_URL || '-'}</div>
+            </div>
+          </div>
+        </div>
+
+        <div className="section-label" style={{marginTop:'1.5rem'}}>Puntos de recogida</div>
+        <div className="settings-card">
+          <div className="settings-row">
+            <div>
+              <div className="settings-label">📍 Puerta del Sur</div>
+              <div className="settings-desc">Alcorcón · 14:45 – 15:00</div>
+            </div>
+          </div>
+          <div className="settings-row">
+            <div>
+              <div className="settings-label">📍 Calle 8 de Marzo 212</div>
+              <div className="settings-desc">Alcorcón · 16:15 – 16:30</div>
+            </div>
+          </div>
+        </div>
+
+        <div style={{marginTop:'2rem'}}>
+          <button
+            onClick={onLogout}
+            style={{
+              width:'100%', padding:'0.875rem',
+              background:'rgba(239,68,68,0.1)',
+              border:'1px solid rgba(239,68,68,0.3)',
+              borderRadius:'var(--radius-sm)',
+              color:'var(--red)',
+              fontFamily:"'Barlow Condensed',sans-serif",
+              fontSize:'1.1rem', fontWeight:'700',
+              textTransform:'uppercase',
+            }}
+          >
+            Cerrar sesión
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── RESTOCK MODAL ──────────────────────────────────────────────────────────
+function RestockModal({ inventory, onClose, onConfirm }) {
+  const [step, setStep] = useState(0); // 0=model, 1=flavor, 2=qty+cost
+  const [model, setModel] = useState(null);
+  const [flavor, setFlavor] = useState(null);
+  const [qty, setQty] = useState('');
+  const [cost, setCost] = useState('');
+
+  const models = [...new Map(inventory.map(i => [i.model_id, { id: i.model_id, code: i.model_code, name: i.model_name, cost: i.cost_per_unit }])).values()];
+  const flavors = inventory.filter(i => i.model_id === model?.id);
+
+  const confirm = () => {
+    if (!qty || isNaN(qty) || +qty <= 0) return;
+    onConfirm({
+      model_id: model.id,
+      flavor_id: flavor.flavor_id,
+      flavor_name: flavor.flavor_name,
+      model_code: model.code,
+      qty: +qty,
+      unit_cost: +cost || model.cost,
+    });
+  };
+
+  return (
+    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="modal-sheet">
+        <div className="modal-handle" />
+
+        {step === 0 && <>
+          <div className="modal-title">Reponer stock — Modelo</div>
+          <div className="modal-options">
+            {models.map(m => (
+              <button key={m.id} className="modal-option" onClick={() => { setModel(m); setStep(1); }}>
+                <span>{m.code} · {m.name}</span>
+                <span style={{color:'var(--text3)',fontSize:'0.8rem'}}>{m.cost}€/ud</span>
+              </button>
+            ))}
+          </div>
+        </>}
+
+        {step === 1 && <>
+          <div className="modal-title">Sabor — {model?.code}</div>
+          <div className="modal-options" style={{maxHeight:'50vh',overflowY:'auto'}}>
+            {flavors.map(f => (
+              <button key={f.flavor_id} className="modal-option" onClick={() => { setFlavor(f); setStep(2); }}>
+                <span>{f.flavor_name}</span>
+                <span className={`stock-badge ${f.stock_units <= 5 ? 'stock-low' : 'stock-ok'}`}>{f.stock_units}</span>
+              </button>
+            ))}
+          </div>
+          <div className="modal-actions">
+            <button className="btn-secondary" onClick={() => setStep(0)}>← Atrás</button>
+          </div>
+        </>}
+
+        {step === 2 && <>
+          <div className="modal-title">Cantidad — {flavor?.flavor_name}</div>
+          <div className="restock-form">
+            <div className="field">
+              <label>Unidades a añadir</label>
+              <input className="qty-input" type="number" min="1" placeholder="0" value={qty} onChange={e => setQty(e.target.value)} autoFocus />
+            </div>
+            <div className="field">
+              <label>Coste por unidad (€)</label>
+              <input className="qty-input" type="number" step="0.01" placeholder={model?.cost} value={cost} onChange={e => setCost(e.target.value)} />
+            </div>
+          </div>
+          <div className="modal-actions">
+            <button className="btn-secondary" onClick={() => setStep(1)}>← Atrás</button>
+            <button className="btn-confirm" onClick={confirm} disabled={!qty}>
+              ✓ Confirmar entrada
+            </button>
+          </div>
+        </>}
+      </div>
+    </div>
+  );
+}
+
+// ─── MAIN APP ────────────────────────────────────────────────────────────────
+function App() {
+  const [ready, setReady] = useState(false);
+  const [configured, setConfigured] = useState(false);
+  const [tab, setTab] = useState('dashboard');
+  const [inventory, setInventory] = useState([]);
+  const [sales, setSales] = useState([]);
+  const [settings, setSettings] = useState(null);
+  const [toast, setToast] = useState(null);
+  const [showRestock, setShowRestock] = useState(false);
+
+  const showToast = (msg, type = 'success') => {
+    setToast({ msg, type, key: Date.now() });
+  };
+
+  // Check if configured
+  useEffect(() => {
+    if (CFG.SUPABASE_URL && CFG.SUPABASE_KEY && CFG.PROFILE_ID) {
+      setConfigured(true);
+      loadData();
+    } else {
+      setReady(true);
+    }
+  }, []);
+
+  const loadData = async () => {
+    try {
+      // Load inventory (join model + flavor)
+      const inv = await sb.get('/inventory', `?profile_id=eq.${CFG.PROFILE_ID}&select=*,product_models(id,code,name,cost_per_unit),product_flavors(id,flavor_name)`);
+
+      const flatInv = inv.map(i => ({
+        id: i.id,
+        model_id: i.product_models?.id || i.model_id,
+        model_code: i.product_models?.code || '?',
+        model_name: i.product_models?.name || '?',
+        cost_per_unit: i.product_models?.cost_per_unit || 0,
+        flavor_id: i.product_flavors?.id || i.flavor_id,
+        flavor_name: i.product_flavors?.flavor_name || '?',
+        stock_units: i.stock_units,
+        low_stock_threshold: i.low_stock_threshold,
+      }));
+      setInventory(flatInv);
+
+      // Load sales with items
+      const sl = await sb.get('/sales', `?profile_id=eq.${CFG.PROFILE_ID}&select=*,sale_items(*)&order=created_at.desc&limit=50`);
+      setSales(sl || []);
+
+      // Load settings
+      try {
+        const sett = await sb.get('/settings', `?profile_id=eq.${CFG.PROFILE_ID}`);
+        setSettings(sett?.[0] || {});
+      } catch { setSettings({}); }
+
+    } catch (e) {
+      showToast('Error cargando datos: ' + e.message, 'error');
+    } finally {
+      setReady(true);
+    }
+  };
+
+  const handleSetupDone = () => {
+    setConfigured(true);
+    loadData();
+  };
+
+  const handleRestock = async ({ model_id, flavor_id, flavor_name, model_code, qty, unit_cost }) => {
+    try {
+      // Create purchase
+      const [purchase] = await sb.post('/purchases', {
+        profile_id: CFG.PROFILE_ID,
+        supplier_name: 'Manual',
+        notes: `Reposición ${model_code} ${flavor_name}`,
+      });
+
+      // Create purchase item
+      await sb.post('/purchase_items', {
+        purchase_id: purchase.id,
+        model_id,
+        flavor_id,
+        qty,
+        unit_cost,
+      });
+
+      // Update stock
+      const inv = inventory.find(i => i.model_id === model_id && i.flavor_id === flavor_id);
+      if (inv) {
+        await sb.patch('/inventory', {
+          stock_units: inv.stock_units + qty,
+          updated_at: new Date().toISOString(),
+        }, `?profile_id=eq.${CFG.PROFILE_ID}&model_id=eq.${model_id}&flavor_id=eq.${flavor_id}`);
+      }
+
+      // Log movement
+      await sb.post('/inventory_movements', {
+        profile_id: CFG.PROFILE_ID,
+        model_id,
+        flavor_id,
+        movement_type: 'purchase',
+        qty_delta: qty,
+        reference_type: 'purchase',
+        reference_id: purchase.id,
+      });
+
+      setShowRestock(false);
+      await loadData();
+      showToast(`✓ +${qty} ${model_code} ${flavor_name} añadidos`);
+    } catch (e) {
+      showToast('Error al reponer: ' + e.message, 'error');
+    }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('vpr_url');
+    localStorage.removeItem('vpr_key');
+    localStorage.removeItem('vpr_pid');
+    location.reload();
+  };
+
+  if (!ready) {
+    return (
+      <div className="loading-screen">
+        <div className="spinner" />
+        <div className="loading-text">Cargando VaperIA...</div>
+      </div>
+    );
+  }
+
+  if (!configured) {
+    return <SetupScreen onDone={handleSetupDone} />;
+  }
+
+  const TABS = [
+    { id: 'dashboard', icon: '📊', label: 'Stock' },
+    { id: 'chat',      icon: '💬', label: 'Chat' },
+    { id: 'sales',     icon: '🧾', label: 'Ventas' },
+    { id: 'settings',  icon: '⚙️', label: 'Config' },
+  ];
+
+  return (
+    <div className="app-shell">
+      <div className="top-nav">
+        <div className="nav-logo">VaperIA</div>
+        <div className="nav-badge">
+          {tab === 'chat' ? '🤖 IA activa' : `${inventory.length} productos`}
+        </div>
+      </div>
+
+      <div style={{flex:1,overflow:'hidden',display:'flex',flexDirection:'column'}}>
+        {tab === 'dashboard' && (
+          <DashboardPage
+            inventory={inventory}
+            sales={sales}
+            onRestock={() => setShowRestock(true)}
+          />
+        )}
+        {tab === 'chat' && (
+          <ChatPage inventory={inventory} sales={sales} settings={settings} />
+        )}
+        {tab === 'sales' && <SalesPage sales={sales} />}
+        {tab === 'settings' && (
+          <SettingsPage
+            settings={settings}
+            onUpdateSettings={setSettings}
+            onLogout={handleLogout}
+          />
+        )}
+      </div>
+
+      <div className="tab-bar">
+        {TABS.map(t => (
+          <button key={t.id} className={`tab-item ${tab === t.id ? 'active' : ''}`} onClick={() => setTab(t.id)}>
+            <span className="tab-icon">{t.icon}</span>
+            <span>{t.label}</span>
+          </button>
+        ))}
+      </div>
+
+      {showRestock && (
+        <RestockModal
+          inventory={inventory}
+          onClose={() => setShowRestock(false)}
+          onConfirm={handleRestock}
+        />
+      )}
+
+      {toast && (
+        <Toast key={toast.key} msg={toast.msg} type={toast.type} onDone={() => setToast(null)} />
+      )}
+    </div>
+  );
+}
+
+// Register SW
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
+  });
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>
