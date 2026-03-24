@@ -1004,7 +1004,7 @@ function DashboardPage({ inventory, sales, onRestock, onRegisterSale }) {
 
 // ─── CHAT PAGE ───────────────────────────────────────────────────────────────
 function ChatPage({ inventory, sales, settings }) {
-  const [mode, setMode] = useState('customer'); // owner | customer
+  const [mode, setMode] = useState('owner'); // owner | customer
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
