@@ -13,6 +13,8 @@ app.use(express.json({ limit: '5mb' }));
 app.use('/webhook',   require('./routes/webhook'));
 app.use('/chat',      require('./routes/chat'));
 app.use('/evolution', require('./routes/evolution'));
+app.use('/auth',      require('./routes/auth'));
+app.use('/data',      require('./routes/data'));
 
 app.get('/health', (_, res) => res.json({ status: 'ok', ts: Date.now() }));
 app.use((err, req, res, next) => {
@@ -23,7 +25,6 @@ app.use((err, req, res, next) => {
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
   console.log(`\n🚀 VaperIA Backend :${PORT}`);
-  console.log(`   POST /webhook/evolution`);
-  console.log(`   POST /chat`);
-  console.log(`   GET  /evolution/status\n`);
+  console.log(`   POST /auth/pin`);
+  console.log(`   GET  /data/inventory\n`);
 });
