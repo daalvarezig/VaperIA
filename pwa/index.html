@@ -1004,7 +1004,7 @@ function DashboardPage({ inventory, sales, onRestock, onRegisterSale }) {
 
 // ─── CHAT PAGE ───────────────────────────────────────────────────────────────
 function ChatPage({ inventory, sales, settings }) {
-  const [mode, setMode] = useState('customer'); // owner | customer
+  const [mode, setMode] = useState('owner'); // owner | customer
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -1254,13 +1254,20 @@ function RegisterSaleModal({ inventory, onClose, onConfirm }) {
   );
 }
 
-function SalesPage({ sales, onRegisterSale }) {
+function SalesPage({ sales, onRegisterSale, onResetSales }) {
   const sorted = [...sales].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
   return (
     <div className="page-content">
       <div className="sales-page">
         <button className="fab" onClick={onRegisterSale} title="Nueva venta" style={{bottom:'calc(70px + 1rem + var(--safe-bottom))'}}>💰</button>
+      <div style={{display:'flex',justifyContent:'flex-end',padding:'0 0 0.75rem'}}>
+        <button onClick={onResetSales} style={{
+          background:'rgba(239,68,68,0.1)',border:'1px solid rgba(239,68,68,0.3)',
+          borderRadius:'var(--radius-sm)',padding:'0.4rem 0.9rem',
+          color:'var(--red)',fontSize:'0.8rem',fontWeight:'600',cursor:'pointer',
+        }}>🗑 Borrar ventas de hoy</button>
+      </div>
       {sorted.length === 0 ? (
           <div className="empty-state">
             <div className="empty-icon">🧾</div>
@@ -1598,6 +1605,18 @@ function App() {
     }
   };
 
+  const handleResetSales = async () => {
+    if (!confirm('¿Borrar todas las ventas de hoy? Esta acción no se puede deshacer.')) return;
+    try {
+      const res = await fetch('/api/data/sales/today', { method: 'DELETE' });
+      if (!res.ok) throw new Error('Error al borrar');
+      await loadData();
+      showToast('✓ Ventas de hoy borradas');
+    } catch(e) {
+      showToast('Error: ' + e.message, 'error');
+    }
+  };
+
   const handleLogout = () => {
     localStorage.removeItem('vpr_auth');
     location.reload();
@@ -1643,7 +1662,7 @@ function App() {
         {tab === 'chat' && (
           <ChatPage inventory={inventory} sales={sales} settings={settings} />
         )}
-        {tab === 'sales' && <SalesPage sales={sales} onRegisterSale={() => setShowSale(true)} />}
+        {tab === 'sales' && <SalesPage sales={sales} onRegisterSale={() => setShowSale(true)} onResetSales={handleResetSales} />}
         {tab === 'settings' && (
           <SettingsPage
             settings={settings}
