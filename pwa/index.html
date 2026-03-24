@@ -662,6 +662,8 @@ const CFG = {
   SUPABASE_KEY: localStorage.getItem('vpr_key') || '',
   PROFILE_ID:   localStorage.getItem('vpr_pid') || '',
 };
+// Check auth
+const isAuthed = () => localStorage.getItem('vpr_auth') === '1';
 
 // ─── SUPABASE CLIENT ────────────────────────────────────────────────────────
 const sb = {
@@ -832,38 +834,41 @@ function Toast({ msg, type, onDone }) {
   return <div className={`toast ${type}`}>{msg}</div>;
 }
 
-// ─── SETUP SCREEN ───────────────────────────────────────────────────────────
+// ─── PIN SCREEN ─────────────────────────────────────────────────────────────
 function SetupScreen({ onDone }) {
-  const [url, setUrl] = useState('');
-  const [key, setKey] = useState('');
-  const [pid, setPid] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [pin, setPin] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const DIGITS = ['1','2','3','4','5','6','7','8','9','','0','⌫'];
 
-  const save = async () => {
-    if (!url || !key) { setError('URL y API Key son obligatorios'); return; }
-    setLoading(true); setError('');
+  const press = (d) => {
+    if (d === '⌫') { setPin(p => p.slice(0,-1)); setError(''); return; }
+    if (d === '') return;
+    if (pin.length >= 4) return;
+    const next = pin + d;
+    setPin(next);
+    if (next.length === 4) verify(next);
+  };
+
+  const verify = async (code) => {
+    setLoading(true);
     try {
-      // Verificar conexión
-      CFG.SUPABASE_URL = url.replace(/\/$/, '');
-      CFG.SUPABASE_KEY = key;
-      CFG.PROFILE_ID = pid;
-
-      const test = await sb.get('/profiles', '?limit=1');
-      const profile = pid ? test.find(p => p.id === pid) || test[0] : test[0];
-
-      if (!profile && !pid) throw new Error('No se encontró ningún perfil. Crea uno primero en Supabase.');
-
-      const finalPid = pid || profile.id;
-      CFG.PROFILE_ID = finalPid;
-
-      localStorage.setItem('vpr_url', CFG.SUPABASE_URL);
-      localStorage.setItem('vpr_key', CFG.SUPABASE_KEY);
-      localStorage.setItem('vpr_pid', finalPid);
-
-      onDone();
-    } catch (e) {
-      setError(e.message || 'Error de conexión');
+      const res = await fetch('/api/auth/pin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pin: code }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        localStorage.setItem('vpr_auth', '1');
+        onDone();
+      } else {
+        setError('PIN incorrecto');
+        setPin('');
+      }
+    } catch(e) {
+      setError('Error de conexión');
+      setPin('');
     } finally {
       setLoading(false);
     }
@@ -872,46 +877,36 @@ function SetupScreen({ onDone }) {
   return (
     <div className="setup-screen">
       <div className="setup-logo">VaperIA</div>
-      <div className="setup-tagline">Conecta tu negocio 💨</div>
-
-      <div className="setup-card">
-        <h2>Configuración inicial</h2>
-
-        <div className="field">
-          <label>Supabase URL</label>
-          <input
-            type="url"
-            placeholder="https://xxx.supabase.co"
-            value={url}
-            onChange={e => setUrl(e.target.value)}
-          />
+      <div className="setup-tagline">Introduce tu PIN 💨</div>
+      <div className="setup-card" style={{maxWidth:'320px'}}>
+        <div style={{display:'flex',justifyContent:'center',gap:'12px',marginBottom:'1.5rem'}}>
+          {[0,1,2,3].map(i => (
+            <div key={i} style={{
+              width:'16px',height:'16px',borderRadius:'50%',
+              background: pin.length > i ? 'var(--accent2)' : 'var(--border2)',
+              border: '2px solid ' + (pin.length > i ? 'var(--accent2)' : 'var(--border2)'),
+              transition:'all 0.15s',
+            }}/>
+          ))}
         </div>
-
-        <div className="field">
-          <label>Anon Key</label>
-          <input
-            type="password"
-            placeholder="eyJhbGci..."
-            value={key}
-            onChange={e => setKey(e.target.value)}
-          />
+        {error && <div style={{color:'var(--red)',fontSize:'0.85rem',textAlign:'center',marginBottom:'1rem'}}>⚠ {error}</div>}
+        <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'10px'}}>
+          {DIGITS.map((d,i) => (
+            <button key={i} onClick={() => press(d)} disabled={loading}
+              style={{
+                padding:'1rem',borderRadius:'var(--radius-sm)',
+                background: d==='⌫' ? 'rgba(239,68,68,0.15)' : d==='' ? 'transparent' : 'var(--surface2)',
+                border: '1px solid ' + (d==='' ? 'transparent' : 'var(--border2)'),
+                color: d==='⌫' ? 'var(--red)' : 'var(--text)',
+                fontFamily:"'Barlow Condensed',sans-serif",
+                fontSize:'1.4rem',fontWeight:'700',
+                cursor: d==='' ? 'default' : 'pointer',
+                transition:'all 0.1s',
+              }}>
+              {d}
+            </button>
+          ))}
         </div>
-
-        <div className="field">
-          <label>Profile ID (opcional)</label>
-          <input
-            type="text"
-            placeholder="Se detecta automáticamente"
-            value={pid}
-            onChange={e => setPid(e.target.value)}
-          />
-        </div>
-
-        {error && <div style={{color:'var(--red)',fontSize:'0.85rem',marginBottom:'0.75rem'}}>⚠ {error}</div>}
-
-        <button className="btn-primary" onClick={save} disabled={loading}>
-          {loading ? 'Conectando...' : 'Conectar →'}
-        </button>
       </div>
     </div>
   );
@@ -1176,9 +1171,14 @@ function SettingsPage({ settings, onUpdateSettings, onLogout }) {
   const s = settings || {};
 
   const toggle = async (key) => {
+    const newVal = key === 'ai_enabled' ? s[key]!==false ? false : true : !s[key];
     try {
-      await sb.patch('/settings', { [key]: !s[key] }, `?profile_id=eq.${CFG.PROFILE_ID}`);
-      onUpdateSettings({ ...s, [key]: !s[key] });
+      await fetch('/api/data/settings', {
+        method: 'PATCH',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ [key]: newVal }),
+      });
+      onUpdateSettings({ ...s, [key]: newVal });
     } catch (e) {
       console.error(e);
     }
@@ -1190,6 +1190,14 @@ function SettingsPage({ settings, onUpdateSettings, onLogout }) {
         <div className="section-label">Configuración</div>
 
         <div className="settings-card">
+          <div className="settings-row" style={{background: s.ai_enabled===false ? 'rgba(239,68,68,0.08)' : 'transparent', borderRadius:'var(--radius)'}}>
+            <div>
+              <div className="settings-label" style={{fontSize:'1rem'}}>🤖 Bot IA WhatsApp</div>
+              <div className="settings-desc">{s.ai_enabled===false ? '⏸ Pausado — respondiendo manualmente' : '▶ Activo — respondiendo automáticamente'}</div>
+            </div>
+            <button className={`toggle ${s.ai_enabled!==false ? 'on' : ''}`}
+              onClick={() => toggle('ai_enabled')} />
+          </div>
           <div className="settings-row">
             <div>
               <div className="settings-label">Sugerencias inteligentes</div>
@@ -1363,9 +1371,9 @@ function App() {
     setToast({ msg, type, key: Date.now() });
   };
 
-  // Check if configured
+  // Check auth (PIN)
   useEffect(() => {
-    if (CFG.SUPABASE_URL && CFG.SUPABASE_KEY && CFG.PROFILE_ID) {
+    if (isAuthed()) {
       setConfigured(true);
       loadData();
     } else {
@@ -1375,32 +1383,14 @@ function App() {
 
   const loadData = async () => {
     try {
-      // Load inventory (join model + flavor)
-      const inv = await sb.get('/inventory', `?profile_id=eq.${CFG.PROFILE_ID}&select=*,product_models(id,code,name,cost_per_unit),product_flavors(id,flavor_name)`);
-
-      const flatInv = inv.map(i => ({
-        id: i.id,
-        model_id: i.product_models?.id || i.model_id,
-        model_code: i.product_models?.code || '?',
-        model_name: i.product_models?.name || '?',
-        cost_per_unit: i.product_models?.cost_per_unit || 0,
-        flavor_id: i.product_flavors?.id || i.flavor_id,
-        flavor_name: i.product_flavors?.flavor_name || '?',
-        stock_units: i.stock_units,
-        low_stock_threshold: i.low_stock_threshold,
-      }));
-      setInventory(flatInv);
-
-      // Load sales with items
-      const sl = await sb.get('/sales', `?profile_id=eq.${CFG.PROFILE_ID}&select=*,sale_items(*)&order=created_at.desc&limit=50`);
-      setSales(sl || []);
-
-      // Load settings
-      try {
-        const sett = await sb.get('/settings', `?profile_id=eq.${CFG.PROFILE_ID}`);
-        setSettings(sett?.[0] || {});
-      } catch { setSettings({}); }
-
+      const [invRes, salesRes, settRes] = await Promise.all([
+        fetch('/api/data/inventory').then(r=>r.json()),
+        fetch('/api/data/sales').then(r=>r.json()),
+        fetch('/api/data/settings').then(r=>r.json()),
+      ]);
+      setInventory(invRes.inventory || []);
+      setSales(salesRes.sales || []);
+      setSettings(settRes.settings || {});
     } catch (e) {
       showToast('Error cargando datos: ' + e.message, 'error');
     } finally {
@@ -1460,9 +1450,7 @@ function App() {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('vpr_url');
-    localStorage.removeItem('vpr_key');
-    localStorage.removeItem('vpr_pid');
+    localStorage.removeItem('vpr_auth');
     location.reload();
   };
 
