@@ -9,9 +9,6 @@
   <meta name="apple-mobile-web-app-title" content="VaperIA" />
   <link rel="manifest" href="/manifest.json" />
   <title>VaperIA</title>
-  <link rel="apple-touch-icon" href="https://raw.githubusercontent.com/daalvarezig/VaperIA/main/pwa/public/icon-512.png">
-  <meta property="og:image" content="https://raw.githubusercontent.com/daalvarezig/VaperIA/main/pwa/public/icon-512.png">
-  <meta name="mobile-web-app-capable" content="yes">
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Barlow+Condensed:wght@300;400;600;700;900&family=Barlow:wght@300;400;500;600&display=swap" rel="stylesheet" />
 
@@ -1007,7 +1004,7 @@ function DashboardPage({ inventory, sales, onRestock, onRegisterSale }) {
 
 // ─── CHAT PAGE ───────────────────────────────────────────────────────────────
 function ChatPage({ inventory, sales, settings }) {
-  const [mode, setMode] = useState('owner'); // owner | customer
+  const [mode, setMode] = useState('customer'); // owner | customer
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -1127,16 +1124,147 @@ function ChatPage({ inventory, sales, settings }) {
 }
 
 // ─── SALES PAGE ──────────────────────────────────────────────────────────────
-function SalesPage({ sales }) {
+
+// ─── REGISTER SALE MODAL ─────────────────────────────────────────────────────
+function RegisterSaleModal({ inventory, onClose, onConfirm }) {
+  const [model, setModel] = useState(null);
+  const [flavor, setFlavor] = useState(null);
+  const [qty, setQty] = useState('');
+  const [price, setPrice] = useState('');
+  const [step, setStep] = useState(0); // 0=model, 1=flavor, 2=qty+price
+  const [loading, setLoading] = useState(false);
+
+  const models = [...new Map(inventory.map(i => [i.model_id, {
+    id: i.model_id, code: i.model_code, name: i.model_name, cost: i.cost_per_unit
+  }])).values()];
+
+  const flavors = inventory.filter(i => i.model_id === model?.id && i.stock_units > 0);
+
+  const calcPrice = (q) => {
+    const n = +q;
+    if (!n) return '';
+    if (n < 10) return '14.00';
+    if (n < 50) return '12.00';
+    if (n < 100) return '11.00';
+    return '10.00';
+  };
+
+  const handleQtyChange = (val) => {
+    setQty(val);
+    if (val && !isNaN(val)) setPrice(calcPrice(val));
+  };
+
+  const margin = () => {
+    if (!qty || !price || !model) return 0;
+    return ((+price - model.cost) * +qty).toFixed(2);
+  };
+
+  const confirm = async () => {
+    if (!qty || !price || isNaN(qty) || isNaN(price)) return;
+    setLoading(true);
+    try {
+      await onConfirm({
+        model_id: model.id,
+        flavor_id: flavor.flavor_id,
+        model_code: model.code,
+        flavor_name: flavor.flavor_name,
+        qty: +qty,
+        unit_price: +price,
+        unit_cost: model.cost,
+      });
+    } finally { setLoading(false); }
+  };
+
+  return (
+    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="modal-sheet">
+        <div className="modal-handle" />
+
+        {step === 0 && <>
+          <div className="modal-title">Registrar venta — Modelo</div>
+          <div className="modal-options">
+            {models.map(m => (
+              <button key={m.id} className="modal-option" onClick={() => { setModel(m); setStep(1); }}>
+                <span>{m.code} · {m.name}</span>
+                <span style={{color:'var(--text3)',fontSize:'0.8rem'}}>{m.cost}€ coste</span>
+              </button>
+            ))}
+          </div>
+        </>}
+
+        {step === 1 && <>
+          <div className="modal-title">Sabor — {model?.code}</div>
+          <div className="modal-options" style={{maxHeight:'50vh',overflowY:'auto'}}>
+            {flavors.length === 0 && (
+              <div style={{color:'var(--text3)',padding:'1rem',textAlign:'center'}}>Sin stock disponible</div>
+            )}
+            {flavors.map(f => (
+              <button key={f.flavor_id} className="modal-option" onClick={() => { setFlavor(f); setStep(2); }}>
+                <span>{f.flavor_name}</span>
+                <span className={`stock-badge ${f.stock_units <= 5 ? 'stock-low' : 'stock-ok'}`}>{f.stock_units}</span>
+              </button>
+            ))}
+          </div>
+          <div className="modal-actions">
+            <button className="btn-secondary" onClick={() => setStep(0)}>← Atrás</button>
+          </div>
+        </>}
+
+        {step === 2 && <>
+          <div className="modal-title">Venta — {model?.code} {flavor?.flavor_name}</div>
+          <div className="restock-form">
+            <div className="field">
+              <label>Unidades</label>
+              <input className="qty-input" type="number" min="1" placeholder="0"
+                value={qty} onChange={e => handleQtyChange(e.target.value)} autoFocus />
+            </div>
+            <div className="field">
+              <label>Precio por unidad (€)</label>
+              <input className="qty-input" type="number" step="0.01" placeholder="14.00"
+                value={price} onChange={e => setPrice(e.target.value)} />
+              <div style={{fontSize:'0.75rem',color:'var(--text3)',marginTop:'0.3rem',textAlign:'center'}}>
+                Auto: 1-10→14€ · 10-50→12€ · 50-100→11€ · 100+→10€
+              </div>
+            </div>
+            {qty && price && (
+              <div style={{
+                background:'rgba(34,197,94,0.1)',border:'1px solid rgba(34,197,94,0.3)',
+                borderRadius:'var(--radius-sm)',padding:'0.875rem',textAlign:'center'
+              }}>
+                <div style={{fontSize:'0.8rem',color:'var(--text3)',marginBottom:'0.25rem'}}>Resumen</div>
+                <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:'1.3rem',fontWeight:'700',color:'var(--green)'}}>
+                  Total: {(+qty * +price).toFixed(2)}€
+                </div>
+                <div style={{fontSize:'0.8rem',color:'var(--text2)',marginTop:'0.2rem'}}>
+                  Margen: +{margin()}€ · {qty} uds × {price}€
+                </div>
+              </div>
+            )}
+          </div>
+          <div className="modal-actions">
+            <button className="btn-secondary" onClick={() => setStep(1)}>← Atrás</button>
+            <button className="btn-confirm" onClick={confirm}
+              disabled={!qty || !price || loading}>
+              {loading ? '...' : '✓ Registrar venta'}
+            </button>
+          </div>
+        </>}
+      </div>
+    </div>
+  );
+}
+
+function SalesPage({ sales, onRegisterSale }) {
   const sorted = [...sales].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
   return (
     <div className="page-content">
       <div className="sales-page">
-        {sorted.length === 0 ? (
+        <button className="fab" onClick={onRegisterSale} title="Nueva venta" style={{bottom:'calc(70px + 1rem + var(--safe-bottom))'}}>💰</button>
+      {sorted.length === 0 ? (
           <div className="empty-state">
             <div className="empty-icon">🧾</div>
-            <div className="empty-text">Sin ventas registradas aún.</div>
+            <div className="empty-text">Sin ventas registradas aún.<br/><span style={{fontSize:'0.8rem'}}>Pulsa 💰 para registrar una venta.</span></div>
           </div>
         ) : sorted.map(sale => (
           <div key={sale.id} className="sale-card">
@@ -1369,6 +1497,7 @@ function App() {
   const [settings, setSettings] = useState(null);
   const [toast, setToast] = useState(null);
   const [showRestock, setShowRestock] = useState(false);
+  const [showSale, setShowSale] = useState(false);
 
   const showToast = (msg, type = 'success') => {
     setToast({ msg, type, key: Date.now() });
@@ -1452,6 +1581,23 @@ function App() {
     }
   };
 
+  const handleSale = async ({ model_id, flavor_id, model_code, flavor_name, qty, unit_price, unit_cost }) => {
+    try {
+      const res = await fetch('/api/data/sales', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model_id, flavor_id, model_code, flavor_name, qty, unit_price, unit_cost }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Error al registrar');
+      setShowSale(false);
+      await loadData();
+      showToast(`✓ Venta: ${qty}× ${model_code} ${flavor_name} — ${(qty*unit_price).toFixed(2)}€`);
+    } catch(e) {
+      showToast('Error: ' + e.message, 'error');
+    }
+  };
+
   const handleLogout = () => {
     localStorage.removeItem('vpr_auth');
     location.reload();
@@ -1497,7 +1643,7 @@ function App() {
         {tab === 'chat' && (
           <ChatPage inventory={inventory} sales={sales} settings={settings} />
         )}
-        {tab === 'sales' && <SalesPage sales={sales} />}
+        {tab === 'sales' && <SalesPage sales={sales} onRegisterSale={() => setShowSale(true)} />}
         {tab === 'settings' && (
           <SettingsPage
             settings={settings}
@@ -1521,6 +1667,14 @@ function App() {
           inventory={inventory}
           onClose={() => setShowRestock(false)}
           onConfirm={handleRestock}
+        />
+      )}
+
+      {showSale && (
+        <RegisterSaleModal
+          inventory={inventory}
+          onClose={() => setShowSale(false)}
+          onConfirm={handleSale}
         />
       )}
 
