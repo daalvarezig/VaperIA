@@ -1,4 +1,3 @@
-
 networks:
   vaperia_net:
     driver: bridge
@@ -6,8 +5,22 @@ networks:
 volumes:
   evolution_store:
   evolution_instances:
+  postgres_data:
 
 services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: vaperia_postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=evolution
+      - POSTGRES_USER=evolution
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-evolution123}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - vaperia_net
+
   evolution:
     image: evoapicloud/evolution-api:v2.3.7
     container_name: vaperia_evolution
@@ -18,7 +31,10 @@ services:
       - SERVER_URL=${EVOLUTION_SERVER_URL}
       - AUTHENTICATION_API_KEY=${EVOLUTION_API_KEY}
       - AUTHENTICATION_EXPOSE_IN_FETCH_INSTANCES=true
-      - DATABASE_ENABLED=false
+      - DATABASE_ENABLED=true
+      - DATABASE_PROVIDER=postgresql
+      - DATABASE_CONNECTION_URI=postgresql://evolution:${POSTGRES_PASSWORD:-evolution123}@postgres:5432/evolution
+      - DATABASE_CONNECTION_CLIENT_NAME=evolution
       - CACHE_REDIS_ENABLED=false
       - DEL_INSTANCE=false
       - QRCODE_LIMIT=30
@@ -27,6 +43,8 @@ services:
     volumes:
       - evolution_store:/evolution/store
       - evolution_instances:/evolution/instances
+    depends_on:
+      - postgres
     networks:
       - vaperia_net
 
