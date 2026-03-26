@@ -1599,46 +1599,17 @@ function App() {
 
   const handleRestock = async ({ model_id, flavor_id, flavor_name, model_code, qty, unit_cost }) => {
     try {
-      // Create purchase
-      const [purchase] = await sb.post('/purchases', {
-        profile_id: CFG.PROFILE_ID,
-        supplier_name: 'Manual',
-        notes: `Reposición ${model_code} ${flavor_name}`,
+      const res = await fetch('/api/data/restock', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model_id, flavor_id, flavor_name, model_code, qty, unit_cost }),
       });
-
-      // Create purchase item
-      await sb.post('/purchase_items', {
-        purchase_id: purchase.id,
-        model_id,
-        flavor_id,
-        qty,
-        unit_cost,
-      });
-
-      // Update stock
-      const inv = inventory.find(i => i.model_id === model_id && i.flavor_id === flavor_id);
-      if (inv) {
-        await sb.patch('/inventory', {
-          stock_units: inv.stock_units + qty,
-          updated_at: new Date().toISOString(),
-        }, `?profile_id=eq.${CFG.PROFILE_ID}&model_id=eq.${model_id}&flavor_id=eq.${flavor_id}`);
-      }
-
-      // Log movement
-      await sb.post('/inventory_movements', {
-        profile_id: CFG.PROFILE_ID,
-        model_id,
-        flavor_id,
-        movement_type: 'purchase',
-        qty_delta: qty,
-        reference_type: 'purchase',
-        reference_id: purchase.id,
-      });
-
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Error al reponer');
       setShowRestock(false);
       await loadData();
       showToast(`✓ +${qty} ${model_code} ${flavor_name} añadidos`);
-    } catch (e) {
+    } catch(e) {
       showToast('Error al reponer: ' + e.message, 'error');
     }
   };
