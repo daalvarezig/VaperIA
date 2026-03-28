@@ -1193,15 +1193,19 @@ function ChatPage({ inventory, sales, settings, onOpenSale }) {
 // ─── SALES PAGE ──────────────────────────────────────────────────────────────
 
 // ─── REGISTER SALE MODAL ─────────────────────────────────────────────────────
-function RegisterSaleModal({ inventory, onClose, onConfirm }) {
+function RegisterSaleModal({ inventory, customers, onClose, onConfirm }) {
   // lines = [{model, flavor, qty, price}]
   const [lines, setLines] = useState([]);
-  const [step, setStep] = useState('lines'); // lines | addModel | addFlavor | addQty
+  const [step, setStep] = useState('lines'); // lines | addModel | addFlavor | addQty | customer
   const [curModel, setCurModel] = useState(null);
   const [curFlavor, setCurFlavor] = useState(null);
   const [curQty, setCurQty] = useState('');
   const [curPrice, setCurPrice] = useState('');
   const [loading, setLoading] = useState(false);
+  const [customer, setCustomer] = useState(null); // {id, name, phone, notes} | null
+  const [custSearch, setCustSearch] = useState('');
+  const [newCust, setNewCust] = useState({ name:'', phone:'', notes:'' });
+  const [custMode, setCustMode] = useState('search'); // search | new
 
   const models = [...new Map(inventory.map(i => [i.model_id, {
     id: i.model_id, code: i.model_code, name: i.model_name, cost: i.cost_per_unit
@@ -1242,7 +1246,7 @@ function RegisterSaleModal({ inventory, onClose, onConfirm }) {
   const confirm = async () => {
     if (lines.length === 0) return;
     setLoading(true);
-    try { await onConfirm({ lines }); }
+    try { await onConfirm({ lines, customer }); }
     finally { setLoading(false); }
   };
 
@@ -1282,6 +1286,15 @@ function RegisterSaleModal({ inventory, onClose, onConfirm }) {
             color:'var(--accent3)',fontSize:'0.9rem',fontWeight:'600',cursor:'pointer',marginBottom:'1rem'
           }}>+ Añadir sabor</button>
 
+          <div style={{marginBottom:'0.75rem'}}>
+            <button onClick={() => setStep('customer')} style={{
+              width:'100%',padding:'0.6rem',background:'var(--surface2)',
+              border:'1px solid var(--border2)',borderRadius:'var(--radius-sm)',
+              color: customer ? 'var(--green)' : 'var(--text3)',fontSize:'0.85rem',cursor:'pointer',fontWeight:'600'
+            }}>
+              {customer ? `👤 ${customer.name}` : '👤 Añadir cliente (opcional)'}
+            </button>
+          </div>
           <div className="modal-actions">
             <button className="btn-secondary" onClick={onClose}>Cancelar</button>
             <button className="btn-confirm" onClick={confirm} disabled={lines.length === 0 || loading}>
@@ -1320,6 +1333,65 @@ function RegisterSaleModal({ inventory, onClose, onConfirm }) {
           </div>
         </>}
 
+        {step === 'customer' && <>
+          <div className="modal-title">👤 Cliente (opcional)</div>
+          <div style={{display:'flex',gap:'0.5rem',marginBottom:'1rem'}}>
+            <button onClick={() => setCustMode('search')} style={{
+              flex:1,padding:'0.5rem',borderRadius:'var(--radius-sm)',border:'none',cursor:'pointer',fontWeight:'600',fontSize:'0.8rem',
+              background: custMode==='search' ? 'var(--accent)' : 'var(--surface2)', color: custMode==='search' ? '#fff' : 'var(--text3)'
+            }}>Buscar existente</button>
+            <button onClick={() => setCustMode('new')} style={{
+              flex:1,padding:'0.5rem',borderRadius:'var(--radius-sm)',border:'none',cursor:'pointer',fontWeight:'600',fontSize:'0.8rem',
+              background: custMode==='new' ? 'var(--accent)' : 'var(--surface2)', color: custMode==='new' ? '#fff' : 'var(--text3)'
+            }}>Nuevo cliente</button>
+          </div>
+
+          {custMode === 'search' && <>
+            <input value={custSearch} onChange={e=>setCustSearch(e.target.value)}
+              placeholder="Buscar por nombre o teléfono..."
+              style={{width:'100%',padding:'0.75rem',borderRadius:'var(--radius-sm)',
+                background:'var(--surface2)',border:'1px solid var(--border2)',color:'var(--text)',marginBottom:'0.5rem',outline:'none'}} />
+            <div style={{maxHeight:'200px',overflowY:'auto'}}>
+              {(customers||[]).filter(c =>
+                (c.display_name||'').toLowerCase().includes(custSearch.toLowerCase()) ||
+                (c.wa_phone||'').includes(custSearch)
+              ).map(c => (
+                <button key={c.id} onClick={() => { setCustomer({id:c.id,name:c.display_name,phone:c.wa_phone,notes:c.notes}); setStep('lines'); }}
+                  style={{width:'100%',padding:'0.75rem',marginBottom:'0.3rem',background:'var(--surface2)',
+                    border:'1px solid var(--border)',borderRadius:'var(--radius-sm)',cursor:'pointer',textAlign:'left',color:'var(--text)'}}>
+                  <div style={{fontWeight:'600',fontSize:'0.85rem'}}>{c.display_name}</div>
+                  {c.wa_phone && <div style={{fontSize:'0.75rem',color:'var(--text3)'}}>+{c.wa_phone}</div>}
+                </button>
+              ))}
+            </div>
+          </>}
+
+          {custMode === 'new' && <div className="restock-form">
+            <div className="field">
+              <label>Nombre</label>
+              <input className="qty-input" value={newCust.name} onChange={e=>setNewCust(p=>({...p,name:e.target.value}))} placeholder="Nombre del cliente" />
+            </div>
+            <div className="field">
+              <label>Teléfono (opcional)</label>
+              <input className="qty-input" value={newCust.phone} onChange={e=>setNewCust(p=>({...p,phone:e.target.value}))} placeholder="34600000000" />
+            </div>
+            <div className="field">
+              <label>Notas (opcional)</label>
+              <input className="qty-input" value={newCust.notes} onChange={e=>setNewCust(p=>({...p,notes:e.target.value}))} placeholder="Mayorista, zona norte..." />
+            </div>
+          </div>}
+
+          <div className="modal-actions">
+            <button className="btn-secondary" onClick={() => { setCustomer(null); setStep('lines'); }}>Sin cliente</button>
+            {custMode === 'new' && newCust.name && (
+              <button className="btn-confirm" onClick={() => { setCustomer({id:null,...newCust,name:newCust.name}); setStep('lines'); }}>
+                ✓ Usar cliente
+              </button>
+            )}
+            {custMode === 'search' && <button className="btn-secondary" onClick={() => setStep('lines')}>← Volver</button>}
+          </div>
+        </>}
+
         {step === 'addQty' && <>
           <div className="modal-title">{curModel?.code} · {curFlavor?.flavor_name}</div>
           <div className="restock-form">
@@ -1352,6 +1424,141 @@ function RegisterSaleModal({ inventory, onClose, onConfirm }) {
             </button>
           </div>
         </>}
+      </div>
+    </div>
+  );
+}
+
+// ─── CUSTOMERS PAGE ──────────────────────────────────────────────────────────
+function CustomersPage({ customers, sales, onRefresh }) {
+  const [selected, setSelected] = React.useState(null);
+  const [search, setSearch] = React.useState('');
+
+  const filtered = customers.filter(c =>
+    (c.display_name||'').toLowerCase().includes(search.toLowerCase()) ||
+    (c.wa_phone||'').includes(search)
+  );
+
+  const getStats = (customerId) => {
+    const cSales = sales.filter(s => s.customer_id === customerId);
+    const total = cSales.reduce((a, s) => a + Number(s.total_amount||0), 0);
+    const units = cSales.reduce((a, s) => a + (s.sale_items?.reduce((b,i) => b+i.qty, 0)||0), 0);
+    const last = cSales.sort((a,b) => new Date(b.created_at)-new Date(a.created_at))[0];
+    const flavors = {};
+    cSales.forEach(s => s.sale_items?.forEach(i => {
+      const k = i.flavor_name; flavors[k] = (flavors[k]||0) + i.qty;
+    }));
+    const fav = Object.entries(flavors).sort((a,b)=>b[1]-a[1])[0];
+    return { total, units, last, fav: fav?.[0], count: cSales.length };
+  };
+
+  if (selected) {
+    const c = customers.find(x => x.id === selected);
+    const stats = getStats(selected);
+    const cSales = sales.filter(s => s.customer_id === selected)
+      .sort((a,b) => new Date(b.created_at)-new Date(a.created_at));
+    return (
+      <div className="page-content">
+        <div className="dashboard">
+          <button onClick={() => setSelected(null)} style={{
+            background:'none',border:'none',color:'var(--accent3)',
+            fontSize:'0.85rem',fontWeight:'600',cursor:'pointer',marginBottom:'1rem',padding:0
+          }}>← Volver</button>
+
+          <div style={{background:'var(--surface)',borderRadius:'var(--radius)',padding:'1.25rem',marginBottom:'1rem'}}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
+              <div>
+                <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:'1.4rem',fontWeight:'700',color:'var(--text)'}}>{c?.display_name||'Sin nombre'}</div>
+                {c?.wa_phone && <div style={{fontSize:'0.8rem',color:'var(--text3)',marginTop:'0.2rem'}}>📱 +{c.wa_phone}</div>}
+                {c?.notes && <div style={{fontSize:'0.82rem',color:'var(--text2)',marginTop:'0.5rem',fontStyle:'italic'}}>{c.notes}</div>}
+              </div>
+              <div style={{fontSize:'1.5rem'}}>👤</div>
+            </div>
+          </div>
+
+          <div className="stats-grid" style={{marginBottom:'1rem'}}>
+            <div className="stat-card green">
+              <div className="stat-label">Total gastado</div>
+              <div className="stat-value">{stats.total.toFixed(0)}€</div>
+              <div className="stat-sub">{stats.count} compras</div>
+            </div>
+            <div className="stat-card purple">
+              <div className="stat-label">Unidades</div>
+              <div className="stat-value">{stats.units}</div>
+              <div className="stat-sub">en total</div>
+            </div>
+            <div className="stat-card cyan">
+              <div className="stat-label">Última compra</div>
+              <div className="stat-value" style={{fontSize:'1rem'}}>{stats.last ? new Date(stats.last.created_at).toLocaleDateString('es-ES',{day:'2-digit',month:'short'}) : '—'}</div>
+              <div className="stat-sub">{stats.last ? new Date(stats.last.created_at).toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'}) : 'Sin compras'}</div>
+            </div>
+            <div className="stat-card yellow">
+              <div className="stat-label">Favorito</div>
+              <div className="stat-value" style={{fontSize:'0.7rem',lineHeight:1.2}}>{stats.fav?.split('&')[0]?.trim()||'—'}</div>
+              <div className="stat-sub">sabor más pedido</div>
+            </div>
+          </div>
+
+          <div className="section-label">Historial de compras</div>
+          {cSales.length === 0 ? (
+            <div className="empty-state"><div className="empty-icon">🧾</div><div className="empty-text">Sin compras registradas</div></div>
+          ) : cSales.map(sale => (
+            <div key={sale.id} style={{background:'var(--surface)',border:'1px solid var(--border)',borderRadius:'var(--radius)',padding:'0.875rem',marginBottom:'0.5rem'}}>
+              <div style={{display:'flex',justifyContent:'space-between',marginBottom:'0.4rem'}}>
+                <div style={{fontSize:'0.75rem',color:'var(--text3)'}}>{new Date(sale.created_at).toLocaleString('es-ES',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}</div>
+                <div style={{fontWeight:'700',color:'var(--green)'}}>{Number(sale.total_amount||0).toFixed(2)}€</div>
+              </div>
+              {sale.sale_items?.map((item,i) => (
+                <div key={i} style={{fontSize:'0.8rem',color:'var(--text2)',display:'flex',justifyContent:'space-between'}}>
+                  <span>{item.qty}× {item.model_code} {item.flavor_name}</span>
+                  <span>{Number(item.line_total||item.qty*item.unit_price||0).toFixed(2)}€</span>
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="page-content">
+      <div className="dashboard">
+        <input value={search} onChange={e=>setSearch(e.target.value)}
+          placeholder="Buscar por nombre o teléfono..."
+          style={{width:'100%',padding:'0.75rem 1rem',borderRadius:'var(--radius)',
+            background:'var(--surface)',border:'1px solid var(--border2)',
+            color:'var(--text)',fontSize:'0.9rem',marginBottom:'1rem',outline:'none'}} />
+        {filtered.length === 0 ? (
+          <div className="empty-state"><div className="empty-icon">👥</div><div className="empty-text">Sin clientes registrados</div></div>
+        ) : filtered.map(c => {
+          const stats = getStats(c.id);
+          return (
+            <div key={c.id} onClick={() => setSelected(c.id)} style={{
+              background:'var(--surface)',border:'1px solid var(--border)',
+              borderRadius:'var(--radius)',padding:'1rem',marginBottom:'0.5rem',cursor:'pointer',
+              display:'flex',alignItems:'center',gap:'1rem'
+            }}>
+              <div style={{width:40,height:40,borderRadius:'50%',background:'var(--accent)',
+                display:'flex',alignItems:'center',justifyContent:'center',
+                fontFamily:"'Barlow Condensed',sans-serif",fontSize:'1.2rem',fontWeight:'700',color:'#fff',flexShrink:0}}>
+                {(c.display_name||'?')[0].toUpperCase()}
+              </div>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontWeight:'700',color:'var(--text)',marginBottom:'0.15rem'}}>{c.display_name||'Sin nombre'}</div>
+                <div style={{fontSize:'0.75rem',color:'var(--text3)',display:'flex',gap:'0.75rem'}}>
+                  {c.wa_phone && <span>📱 +{c.wa_phone}</span>}
+                  {stats.count > 0 && <span>🧾 {stats.count} compras</span>}
+                  {stats.last && <span>🕐 {new Date(stats.last.created_at).toLocaleDateString('es-ES',{day:'2-digit',month:'short'})}</span>}
+                </div>
+              </div>
+              <div style={{textAlign:'right',flexShrink:0}}>
+                <div style={{fontWeight:'700',color:'var(--green)',fontSize:'0.95rem'}}>{stats.total.toFixed(0)}€</div>
+                <div style={{fontSize:'0.7rem',color:'var(--text3)'}}>{stats.units} uds</div>
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -1605,6 +1812,7 @@ function App() {
   const [toast, setToast] = useState(null);
   const [showRestock, setShowRestock] = useState(false);
   const [showSale, setShowSale] = useState(false);
+  const [customers, setCustomers] = useState([]);
 
   const showToast = (msg, type = 'success') => {
     setToast({ msg, type, key: Date.now() });
@@ -1622,14 +1830,16 @@ function App() {
 
   const loadData = async () => {
     try {
-      const [invRes, salesRes, settRes] = await Promise.all([
+      const [invRes, salesRes, settRes, custRes] = await Promise.all([
         fetch('/api/data/inventory').then(r=>r.json()),
         fetch('/api/data/sales').then(r=>r.json()),
         fetch('/api/data/settings').then(r=>r.json()),
+        fetch('/api/data/customers').then(r=>r.json()),
       ]);
       setInventory(invRes.inventory || []);
       setSales(salesRes.sales || []);
       setSettings(settRes.settings || {});
+      setCustomers(custRes.customers || []);
     } catch (e) {
       showToast('Error cargando datos: ' + e.message, 'error');
     } finally {
@@ -1688,12 +1898,12 @@ function App() {
     }
   };
 
-  const handleSale = async ({ lines }) => {
+  const handleSale = async ({ lines, customer }) => {
     try {
       const res = await fetch('/api/data/sales', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ lines }),
+        body: JSON.stringify({ lines, customer }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Error al registrar');
@@ -1740,6 +1950,7 @@ function App() {
     { id: 'dashboard', icon: '📊', label: 'Stock' },
     { id: 'chat',      icon: '💬', label: 'Chat' },
     { id: 'sales',     icon: '🧾', label: 'Ventas' },
+    { id: 'customers', icon: '👥', label: 'Clientes' },
     { id: 'settings',  icon: '⚙️', label: 'Config' },
   ];
 
@@ -1764,6 +1975,7 @@ function App() {
           <ChatPage inventory={inventory} sales={sales} settings={settings} onOpenSale={() => setShowSale(true)} />
         )}
         {tab === 'sales' && <SalesPage sales={sales} onRegisterSale={() => setShowSale(true)} onDeleteSale={handleDeleteSale} />}
+        {tab === 'customers' && <CustomersPage customers={customers} sales={sales} onRefresh={loadData} />}
         {tab === 'settings' && (
           <SettingsPage
             settings={settings}
@@ -1793,6 +2005,7 @@ function App() {
       {showSale && (
         <RegisterSaleModal
           inventory={inventory}
+          customers={customers}
           onClose={() => setShowSale(false)}
           onConfirm={handleSale}
         />
