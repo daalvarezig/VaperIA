@@ -965,11 +965,31 @@ function ModelCard({ model }) {
 }
 
 function DashboardPage({ inventory, sales, onRestock }) {
-  const today = new Date().toISOString().split('T')[0];
-  const todaySales = sales.filter(s => s.created_at?.startsWith(today));
-  const revenue = todaySales.reduce((a, s) => a + Number(s.total_amount || 0), 0);
-  const margin = todaySales.reduce((a, s) => a + Number(s.total_margin || 0), 0);
-  const totalUnits = todaySales.reduce((a, s) => a + (s.sale_items?.reduce((b, i) => b + i.qty, 0) || 0), 0);
+  const [period, setPeriod] = React.useState('today');
+
+  const filterSales = () => {
+    const now = new Date();
+    if (period === 'today') {
+      const today = now.toISOString().split('T')[0];
+      return sales.filter(s => s.created_at?.startsWith(today));
+    }
+    if (period === 'week') {
+      const start = new Date(now);
+      start.setDate(now.getDate() - now.getDay() + (now.getDay() === 0 ? -6 : 1));
+      start.setHours(0,0,0,0);
+      return sales.filter(s => new Date(s.created_at) >= start);
+    }
+    if (period === 'month') {
+      const start = new Date(now.getFullYear(), now.getMonth(), 1);
+      return sales.filter(s => new Date(s.created_at) >= start);
+    }
+    return sales;
+  };
+
+  const periodSales = filterSales();
+  const revenue = periodSales.reduce((a, s) => a + Number(s.total_amount || 0), 0);
+  const margin = periodSales.reduce((a, s) => a + Number(s.total_margin || 0), 0);
+  const totalUnits = periodSales.reduce((a, s) => a + (s.sale_items?.reduce((b, i) => b + i.qty, 0) || 0), 0);
   const outOfStock = inventory.filter(i => i.stock_units === 0);
   const lowStock = inventory.filter(i => i.stock_units > 0 && i.stock_units <= (i.low_stock_threshold || 5));
   const byModel = inventory.reduce((acc, item) => {
@@ -978,18 +998,42 @@ function DashboardPage({ inventory, sales, onRestock }) {
     acc[k].flavors.push(item);
     return acc;
   }, {});
+
+  const PERIODS = [
+    { id: 'today', label: 'Hoy' },
+    { id: 'week',  label: 'Semana' },
+    { id: 'month', label: 'Mes' },
+  ];
+
+  const periodLabel = { today: 'hoy', week: 'esta semana', month: 'este mes' }[period];
+
   return (
     <div className="page-content">
       <div className="dashboard">
         {lowStock.length > 0 && (
           <div className="low-stock-alert">⚠️ {lowStock.length} sabor{lowStock.length > 1 ? 'es' : ''} con stock bajo</div>
         )}
-        <div className="section-label">Hoy</div>
+
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'0.75rem',marginTop:'0.25rem'}}>
+          <div className="section-label" style={{margin:0}}>Ventas</div>
+          <div style={{display:'flex',background:'var(--surface)',borderRadius:'20px',padding:'3px',border:'1px solid var(--border)'}}>
+            {PERIODS.map(p => (
+              <button key={p.id} onClick={() => setPeriod(p.id)} style={{
+                padding:'0.3rem 0.75rem', borderRadius:'16px', fontSize:'0.72rem',
+                fontWeight:'700', textTransform:'uppercase', letterSpacing:'0.05em',
+                border:'none', cursor:'pointer', transition:'all 0.15s',
+                background: period === p.id ? 'var(--accent)' : 'none',
+                color: period === p.id ? 'white' : 'var(--text3)',
+              }}>{p.label}</button>
+            ))}
+          </div>
+        </div>
+
         <div className="stats-grid">
           <div className="stat-card green">
             <div className="stat-label">Ingresos</div>
             <div className="stat-value">{revenue.toFixed(0)}€</div>
-            <div className="stat-sub">{todaySales.length} ventas</div>
+            <div className="stat-sub">{periodSales.length} ventas {periodLabel}</div>
           </div>
           <div className="stat-card purple">
             <div className="stat-label">Margen</div>
@@ -999,7 +1043,7 @@ function DashboardPage({ inventory, sales, onRestock }) {
           <div className="stat-card cyan">
             <div className="stat-label">Unidades</div>
             <div className="stat-value">{totalUnits}</div>
-            <div className="stat-sub">vendidas hoy</div>
+            <div className="stat-sub">vendidas {periodLabel}</div>
           </div>
           <div className="stat-card yellow">
             <div className="stat-label">Sin stock</div>
@@ -1007,6 +1051,7 @@ function DashboardPage({ inventory, sales, onRestock }) {
             <div className="stat-sub">sabores agotados</div>
           </div>
         </div>
+
         <div className="section-label" style={{marginTop:'1.5rem'}}>Inventario</div>
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'0.75rem'}}>
           {Object.values(byModel).map(model => <ModelCard key={model.code} model={model} />)}
@@ -1599,17 +1644,46 @@ function App() {
 
   const handleRestock = async ({ model_id, flavor_id, flavor_name, model_code, qty, unit_cost }) => {
     try {
-      const res = await fetch('/api/data/restock', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model_id, flavor_id, flavor_name, model_code, qty, unit_cost }),
+      // Create purchase
+      const [purchase] = await sb.post('/purchases', {
+        profile_id: CFG.PROFILE_ID,
+        supplier_name: 'Manual',
+        notes: `Reposición ${model_code} ${flavor_name}`,
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Error al reponer');
+
+      // Create purchase item
+      await sb.post('/purchase_items', {
+        purchase_id: purchase.id,
+        model_id,
+        flavor_id,
+        qty,
+        unit_cost,
+      });
+
+      // Update stock
+      const inv = inventory.find(i => i.model_id === model_id && i.flavor_id === flavor_id);
+      if (inv) {
+        await sb.patch('/inventory', {
+          stock_units: inv.stock_units + qty,
+          updated_at: new Date().toISOString(),
+        }, `?profile_id=eq.${CFG.PROFILE_ID}&model_id=eq.${model_id}&flavor_id=eq.${flavor_id}`);
+      }
+
+      // Log movement
+      await sb.post('/inventory_movements', {
+        profile_id: CFG.PROFILE_ID,
+        model_id,
+        flavor_id,
+        movement_type: 'purchase',
+        qty_delta: qty,
+        reference_type: 'purchase',
+        reference_id: purchase.id,
+      });
+
       setShowRestock(false);
       await loadData();
       showToast(`✓ +${qty} ${model_code} ${flavor_name} añadidos`);
-    } catch(e) {
+    } catch (e) {
       showToast('Error al reponer: ' + e.message, 'error');
     }
   };
