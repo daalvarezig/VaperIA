@@ -1,3 +1,4 @@
+/* backend/src/lib/db.js */
 const supabase = require('./supabase');
 const PID = () => process.env.PROFILE_ID;
 
@@ -64,42 +65,42 @@ async function saveMessage({ customerId, direction, channel, text, waMessageId }
   });
 }
 
-// Añade esta función antes del module.exports
-async function restock({ model_id, flavor_id, qty, unit_cost, notes }) {
-  const { data: current, error: fetchErr } = await supabase
-    .from('inventory')
-    .select('stock_units')
-    .eq('profile_id', PID())
-    .eq('flavor_id', flavor_id)
-    .single();
+// Lógica de reposición (Restock) completa con registro de movimientos
+async function restock({ model_id, flavor_id, flavor_name, model_code, qty, unit_cost }) {
+  try {
+    // 1. Crear registro en la tabla de compras
+    const { data: purchase, error: pErr } = await supabase.from('purchases')
+      .insert({ profile_id: PID(), supplier_name: 'Manual', notes: 'Reposición ' + model_code + ' ' + flavor_name })
+      .select().single();
+    if (pErr) throw pErr;
 
-  if (fetchErr) throw fetchErr;
+    // 2. Registrar el ítem comprado
+    await supabase.from('purchase_items').insert({ purchase_id: purchase.id, model_id, flavor_id, qty, unit_cost });
 
-  const newStock = (current?.stock_units || 0) + Number(qty);
+    // 3. Obtener stock actual para actualizar
+    const { data: inv } = await supabase.from('inventory').select('stock_units')
+      .eq('profile_id', PID()).eq('model_id', model_id).eq('flavor_id', flavor_id).single();
+    
+    // 4. Actualizar inventario
+    if (inv) {
+      await supabase.from('inventory').update({
+        stock_units: (inv.stock_units || 0) + Number(qty), updated_at: new Date().toISOString()
+      }).eq('profile_id', PID()).eq('model_id', model_id).eq('flavor_id', flavor_id);
+    }
 
-  const { error: invError } = await supabase
-    .from('inventory')
-    .update({ stock_units: newStock })
-    .eq('profile_id', PID())
-    .eq('flavor_id', flavor_id);
+    // 5. Registrar el movimiento de inventario para el historial
+    await supabase.from('inventory_movements').insert({
+      profile_id: PID(), model_id, flavor_id, movement_type: 'purchase',
+      qty_delta: Number(qty), reference_type: 'purchase', reference_id: purchase.id
+    });
 
-  if (invError) throw invError;
-  
-  // (Opcional) Log de la reposición
-  await supabase.from('restock_logs').insert({
-    profile_id: PID(), model_id, flavor_id,
-    qty: Number(qty), unit_cost: Number(unit_cost), notes
-  });
-
-  return { ok: true, new_stock: newStock };
+    return { ok: true };
+  } catch (e) {
+    throw e;
+  }
 }
 
-// ASEGÚRATE DE QUE EL MODULE.EXPORTS QUEDE ASÍ:
 module.exports = { 
   getInventory, getRecentSales, getSettings, 
-  getOrCreateCustomer, getConversationHistory, saveMessage,
-  restock 
+  getOrCreateCustomer, getConversationHistory, saveMessage, restock 
 };
-
-
-module.exports = { getInventory, getRecentSales, getSettings, getOrCreateCustomer, getConversationHistory, saveMessage };
