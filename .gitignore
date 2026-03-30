@@ -1,0 +1,15 @@
+.env
+node_modules/
+dist/
+venv/
+*.log
+CACHED
+exporting
+naming
+reading
+transferring
+writing
+[backend]
+[pwa]
+[internal]
+=

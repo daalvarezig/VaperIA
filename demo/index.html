@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VaperIA Demo</title>
+</head>
+<body>
+
+<style>
+  .vap { background:#0a0a0f; border-radius:16px; padding:16px; font-family:'Barlow',system-ui,sans-serif; color:#f1f0ff; }
+  .vap-tabs { display:flex; gap:6px; margin-bottom:14px; flex-wrap:wrap; }
+  .vap-tab { padding:5px 12px; border-radius:20px; font-size:12px; font-weight:700; cursor:pointer; border:1px solid rgba(255,255,255,0.12); color:#a09db8; background:none; transition:all 0.15s; }
+  .vap-tab.on { background:#7c3aed; color:#fff; border-color:#7c3aed; }
+  .screen { display:none; }
+  .screen.on { display:block; }
+  .nav { background:#0a0a0f; padding:7px 10px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid rgba(255,255,255,0.06); border-radius:12px 12px 0 0; }
+  .nav-logo { font-size:14px; font-weight:900; color:#a855f7; }
+  .nav-badge { font-size:10px; background:rgba(255,255,255,0.08); border-radius:20px; padding:3px 8px; color:#a09db8; }
+  .content { padding:10px; background:#0a0a0f; border-radius:0 0 12px 12px; }
+  .sl { font-size:10px; color:#6b6880; text-transform:uppercase; letter-spacing:0.08em; margin-bottom:6px; font-weight:700; }
+  .sg { display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-bottom:10px; }
+  .sc { background:#1e1e2e; border-radius:10px; padding:8px 10px; }
+  .sc-l { font-size:9px; color:#6b6880; text-transform:uppercase; margin-bottom:3px; }
+  .sc-v { font-size:18px; font-weight:800; }
+  .sc-s { font-size:9px; color:#a09db8; margin-top:2px; }
+  .sc-bar { height:2px; margin:6px -10px -8px; border-radius:0 0 10px 10px; }
+  .pb { display:flex; background:#1e1e2e; border-radius:20px; padding:3px; margin-bottom:10px; }
+  .pb-b { flex:1; text-align:center; font-size:10px; font-weight:700; padding:3px 0; border-radius:16px; color:#6b6880; cursor:pointer; }
+  .pb-b.on { background:#7c3aed; color:#fff; }
+  .mc { border-radius:10px; margin-bottom:6px; overflow:hidden; }
+  .mh { padding:8px 10px; display:flex; align-items:center; justify-content:space-between; }
+  .mn { font-size:11px; font-weight:800; }
+  .ms { font-size:9px; color:#a09db8; margin-top:2px; }
+  .fr { display:flex; justify-content:space-between; align-items:center; padding:4px 10px; border-top:1px solid rgba(255,255,255,0.04); }
+  .fn { font-size:9px; color:#a09db8; }
+  .sb { font-size:9px; font-weight:700; padding:2px 7px; border-radius:10px; }
+  .tab-bar { display:flex; border-top:1px solid rgba(255,255,255,0.06); background:#0a0a0f; border-radius:0 0 12px 12px; }
+  .tab { flex:1; text-align:center; padding:7px 0 5px; cursor:pointer; }
+  .tab-i { font-size:14px; display:block; }
+  .tab-t { font-size:9px; color:#6b6880; margin-top:1px; }
+  .tab.on .tab-t { color:#7c3aed; }
+  .sale-card { background:#1e1e2e; border-radius:10px; padding:10px 12px; margin-bottom:6px; }
+  .sale-h { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:6px; }
+  .sale-id { font-size:10px; font-weight:700; color:#a09db8; }
+  .sale-dt { font-size:9px; color:#6b6880; margin-top:2px; }
+  .sale-amt { font-size:16px; font-weight:800; }
+  .sale-mg { font-size:9px; color:#22c55e; }
+  .sale-del { font-size:9px; background:rgba(239,68,68,0.15); color:#fca5a5; padding:2px 7px; border-radius:4px; margin-top:3px; cursor:pointer; }
+  .sale-row { display:flex; justify-content:space-between; font-size:10px; color:#a09db8; padding:1px 0; }
+  .cust-item { background:#1e1e2e; border-radius:10px; padding:10px 12px; margin-bottom:6px; display:flex; align-items:center; gap:10px; cursor:pointer; }
+  .cust-av { width:36px; height:36px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:14px; flex-shrink:0; }
+  .cust-name { font-size:12px; font-weight:700; margin-bottom:3px; }
+  .cust-meta { font-size:10px; color:#6b6880; }
+  .cust-total { font-size:14px; font-weight:800; color:#22c55e; }
+  .cust-uds { font-size:10px; color:#6b6880; }
+  .cfg-card { background:#1e1e2e; border-radius:10px; margin-bottom:8px; overflow:hidden; }
+  .cfg-row { display:flex; justify-content:space-between; align-items:center; padding:10px 12px; border-bottom:1px solid rgba(255,255,255,0.04); }
+  .cfg-row:last-child { border-bottom:none; }
+  .cfg-l { font-size:11px; font-weight:700; }
+  .cfg-d { font-size:9px; color:#6b6880; margin-top:2px; }
+  .tog { width:32px; height:18px; border-radius:9px; position:relative; flex-shrink:0; }
+  .tog-d { width:12px; height:12px; background:#fff; border-radius:50%; position:absolute; top:3px; }
+  .tog.on { background:#7c3aed; } .tog.on .tog-d { right:3px; }
+  .tog.off { background:#252535; } .tog.off .tog-d { left:3px; }
+  .pickup { background:#1e1e2e; border-radius:8px; padding:8px 12px; margin-bottom:4px; display:flex; justify-content:space-between; align-items:center; }
+  .pickup-n { font-size:11px; font-weight:600; }
+  .pickup-t { font-size:10px; color:#a855f7; font-weight:700; }
+</style>
+
+<div class="vap">
+  <div class="vap-tabs">
+    <button class="vap-tab on" onclick="showTab('pin')">🔐 Login</button>
+    <button class="vap-tab" onclick="showTab('stock')">📊 Stock</button>
+    <button class="vap-tab" onclick="showTab('ventas')">🧾 Ventas</button>
+    <button class="vap-tab" onclick="showTab('clientes')">👥 Clientes</button>
+    <button class="vap-tab" onclick="showTab('chat')">💬 Chat</button>
+    <button class="vap-tab" onclick="showTab('config')">⚙️ Config</button>
+  </div>
+
+  <div id="screen-stock" class="screen">
+    <div class="nav"><span class="nav-logo">VaperIA</span><span class="nav-badge">35 productos</span></div>
+    <div class="content">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <span class="sl" style="margin:0">Ventas</span>
+        <div class="pb" style="margin:0;padding:2px;">
+          <div class="pb-b">Hoy</div><div class="pb-b on">Semana</div><div class="pb-b">Mes</div>
+        </div>
+      </div>
+      <div class="sg">
+        <div class="sc"><div class="sc-l">Ingresos</div><div class="sc-v" style="color:#22c55e">547€</div><div class="sc-s">4 ventas semana</div><div class="sc-bar" style="background:#22c55e"></div></div>
+        <div class="sc"><div class="sc-l">Margen</div><div class="sc-v" style="color:#a855f7">284€</div><div class="sc-s">51% rentab.</div><div class="sc-bar" style="background:#a855f7"></div></div>
+        <div class="sc"><div class="sc-l">Unidades</div><div class="sc-v" style="color:#06b6d4">81</div><div class="sc-s">vendidas semana</div><div class="sc-bar" style="background:#06b6d4"></div></div>
+        <div class="sc"><div class="sc-l">Sin stock</div><div class="sc-v" style="color:#eab308">26</div><div class="sc-s">sabores agotados</div><div class="sc-bar" style="background:#eab308"></div></div>
+      </div>
+      <div class="sl">Inventario</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+        <div class="mc" style="border:1px solid rgba(34,197,94,0.35)">
+          <div class="mh" style="background:rgba(34,197,94,0.08)">
+            <div><div class="mn">40K · King Pro</div><div class="ms">80 uds · 8 cajas</div></div>
+            <span style="color:#22c55e">▾</span>
+          </div>
+          <div class="fr"><span class="fn">Cherry Lemon</span><span class="sb" style="background:rgba(34,197,94,0.2);color:#22c55e">33</span></div>
+          <div class="fr"><span class="fn">Kiwi Passion...</span><span class="sb" style="background:rgba(34,197,94,0.2);color:#22c55e">20</span></div>
+          <div class="fr"><span class="fn">Grape Burst</span><span class="sb" style="background:rgba(234,179,8,0.2);color:#eab308">12</span></div>
+          <div class="fr" style="border-top:none"><span style="font-size:9px;color:#6b6880">+17 más...</span></div>
+          <div style="height:2px;background:#22c55e;margin-top:4px"></div>
+        </div>
+        <div class="mc" style="border:1px solid rgba(168,85,247,0.35)">
+          <div class="mh" style="background:rgba(168,85,247,0.08)">
+            <div><div class="mn">80K · Quads</div><div class="ms">96 uds · 9.6 cajas</div></div>
+            <span style="color:#a855f7">▾</span>
+          </div>
+          <div class="fr"><span class="fn">Mixed Berry...</span><span class="sb" style="background:rgba(34,197,94,0.2);color:#22c55e">21</span></div>
+          <div class="fr"><span class="fn">Vanilla Cola...</span><span class="sb" style="background:rgba(34,197,94,0.2);color:#22c55e">18</span></div>
+          <div class="fr"><span class="fn">Lemon Lime...</span><span class="sb" style="background:rgba(34,197,94,0.2);color:#22c55e">15</span></div>
+          <div class="fr" style="border-top:none"><span style="font-size:9px;color:#6b6880">+12 más...</span></div>
+          <div style="height:2px;background:#a855f7;margin-top:4px"></div>
+        </div>
+      </div>
+    </div>
+    <div class="tab-bar">
+      <div class="tab on"><span class="tab-i">📊</span><span class="tab-t">Stock</span></div>
+      <div class="tab"><span class="tab-i">💬</span><span class="tab-t">Chat</span></div>
+      <div class="tab"><span class="tab-i">🧾</span><span class="tab-t">Ventas</span></div>
+      <div class="tab"><span class="tab-i">👥</span><span class="tab-t">Clientes</span></div>
+      <div class="tab"><span class="tab-i">⚙️</span><span class="tab-t">Config</span></div>
+    </div>
+  </div>
+
+  <div id="screen-ventas" class="screen">
+    <div class="nav"><span class="nav-logo">VaperIA</span><span class="nav-badge">Ventas</span></div>
+    <div class="content">
+      <div class="sale-card">
+        <div class="sale-h">
+          <div><div class="sale-id">#ECE756</div><div class="sale-dt">27 mar · 17:05 · Carlos López</div></div>
+          <div style="text-align:right"><div class="sale-amt">532€</div><div class="sale-mg">+76€ margen</div><div class="sale-del">🗑 borrar</div></div>
+        </div>
+        <div class="sale-row"><span>20× 80K Vanilla Cola & Lemon Peach...</span><span>300€</span></div>
+        <div class="sale-row"><span>12× 80K Strawberry Mango & Blue Razz...</span><span>120€</span></div>
+        <div class="sale-row"><span>6× 40K Mixed Berry Sour</span><span>54€</span></div>
+        <div class="sale-row"><span>3× 40K Cherry Lemon</span><span>27€</span></div>
+        <div class="sale-row"><span>1× 40K Grape Burst</span><span>10€</span></div>
+      </div>
+      <div class="sale-card">
+        <div class="sale-h">
+          <div><div class="sale-id">#A3F201</div><div class="sale-dt">28 mar · 12:30 · Anónima</div></div>
+          <div style="text-align:right"><div class="sale-amt">15€</div><div class="sale-mg">+8€ margen</div><div class="sale-del">🗑 borrar</div></div>
+        </div>
+        <div class="sale-row"><span>1× 80K Happy Ranch...</span><span>15€</span></div>
+      </div>
+      <div style="height:36px"></div>
+    </div>
+    <div style="position:relative">
+      <div style="position:absolute;bottom:50px;right:12px;width:36px;height:36px;background:linear-gradient(135deg,#7c3aed,#a855f7);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px">💰</div>
+    </div>
+    <div class="tab-bar">
+      <div class="tab"><span class="tab-i">📊</span><span class="tab-t">Stock</span></div>
+      <div class="tab"><span class="tab-i">💬</span><span class="tab-t">Chat</span></div>
+      <div class="tab on"><span class="tab-i">🧾</span><span class="tab-t">Ventas</span></div>
+      <div class="tab"><span class="tab-i">👥</span><span class="tab-t">Clientes</span></div>
+      <div class="tab"><span class="tab-i">⚙️</span><span class="tab-t">Config</span></div>
+    </div>
+  </div>
+
+  <div id="screen-clientes" class="screen">
+    <div class="nav"><span class="nav-logo">VaperIA</span><span class="nav-badge">2 clientes</span></div>
+    <div class="content">
+      <div style="background:#1e1e2e;border-radius:10px;padding:8px 12px;font-size:11px;color:#6b6880;margin-bottom:10px;">Buscar por nombre o teléfono...</div>
+      <div class="cust-item">
+        <div class="cust-av" style="background:#7c3aed;color:#fff">C</div>
+        <div style="flex:1">
+          <div class="cust-name">Carlos López</div>
+          <div class="cust-meta">📱 +34612345678 · 🧾 1 compra · 🕐 27 mar</div>
+        </div>
+        <div style="text-align:right"><div class="cust-total">532€</div><div class="cust-uds">38 uds</div></div>
+      </div>
+      <div class="cust-item">
+        <div class="cust-av" style="background:#a855f7;color:#fff">M</div>
+        <div style="flex:1">
+          <div class="cust-name">María García</div>
+          <div class="cust-meta">📱 +34698765432 · 🧾 1 compra · 🕐 28 mar</div>
+        </div>
+        <div style="text-align:right"><div class="cust-total">15€</div><div class="cust-uds">1 ud</div></div>
+      </div>
+    </div>
+    <div class="tab-bar">
+      <div class="tab"><span class="tab-i">📊</span><span class="tab-t">Stock</span></div>
+      <div class="tab"><span class="tab-i">💬</span><span class="tab-t">Chat</span></div>
+      <div class="tab"><span class="tab-i">🧾</span><span class="tab-t">Ventas</span></div>
+      <div class="tab on"><span class="tab-i">👥</span><span class="tab-t">Clientes</span></div>
+      <div class="tab"><span class="tab-i">⚙️</span><span class="tab-t">Config</span></div>
+    </div>
+  </div>
+
+  <div id="screen-chat" class="screen">
+    <div class="nav"><span class="nav-logo">VaperIA</span><span class="nav-badge" style="background:rgba(124,58,237,0.2);color:#a855f7">🤖 IA activa</span></div>
+    <div class="content">
+      <div style="background:#1e1e2e;border-radius:10px;padding:8px 12px;display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+        <div style="width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#a855f7);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800">V</div>
+        <div style="flex:1"><div style="font-size:11px;font-weight:700">VaperIA</div><div style="font-size:9px;color:#22c55e">online</div></div>
+        <div style="display:flex;gap:4px;">
+          <div style="font-size:10px;padding:3px 8px;border-radius:10px;background:rgba(255,255,255,0.08);color:#6b6880;cursor:pointer">CLIENTE</div>
+          <div style="font-size:10px;padding:3px 8px;border-radius:10px;background:#7c3aed;color:#fff;font-weight:700">INTERNO</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:4px;margin-bottom:8px;flex-wrap:wrap;">
+        <div style="font-size:9px;background:#1e1e2e;border-radius:10px;padding:3px 8px;color:#a09db8">stock?</div>
+        <div style="font-size:9px;background:#1e1e2e;border-radius:10px;padding:3px 8px;color:#a09db8">profit hoy</div>
+        <div style="font-size:9px;background:#1e1e2e;border-radius:10px;padding:3px 8px;color:#a09db8">ventas semana</div>
+        <div style="font-size:9px;background:#1e1e2e;border-radius:10px;padding:3px 8px;color:#a09db8">low stock?</div>
+      </div>
+      <div style="display:flex;margin-bottom:6px;"><div style="max-width:85%;font-size:11px;padding:8px 10px;border-radius:2px 10px 10px 10px;background:#1e1e2e;line-height:1.5">Hola! Soy VaperIA en modo interno 🧠<br>Puedo ayudarte con:<br>• "stock?" → ver inventario<br>• "profit hoy" → margen del día<br>• "vende 2 mango 40K" → registrar venta</div></div>
+      <div style="display:flex;justify-content:flex-end;margin-bottom:6px;"><div style="max-width:85%;font-size:11px;padding:8px 10px;border-radius:10px 2px 10px 10px;background:#7c3aed;color:#fff;line-height:1.5">Vendo 3 Cherry Lemon y 2 Grape Burst del 40K</div></div>
+      <div style="display:flex;margin-bottom:6px;"><div style="max-width:90%;font-size:11px;padding:8px 10px;border-radius:2px 10px 10px 10px;background:#1e1e2e;line-height:1.5">Registrando venta 40K:<br>- 3× Cherry Lemon = 30€<br>- 2× Grape Burst = 20€<br><strong>Total: 50€ | Margen: 29€</strong><br>¿Confirmas?</div></div>
+      <div style="display:flex;gap:6px;border-top:1px solid rgba(255,255,255,0.06);padding-top:8px;">
+        <input style="flex:1;background:#1e1e2e;border:none;border-radius:8px;padding:6px 10px;font-size:11px;color:#6b6880;outline:none" placeholder="Escribe un mensaje..." />
+        <div style="width:28px;height:28px;background:#7c3aed;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px">➤</div>
+      </div>
+    </div>
+    <div class="tab-bar">
+      <div class="tab"><span class="tab-i">📊</span><span class="tab-t">Stock</span></div>
+      <div class="tab on"><span class="tab-i">💬</span><span class="tab-t">Chat</span></div>
+      <div class="tab"><span class="tab-i">🧾</span><span class="tab-t">Ventas</span></div>
+      <div class="tab"><span class="tab-i">👥</span><span class="tab-t">Clientes</span></div>
+      <div class="tab"><span class="tab-i">⚙️</span><span class="tab-t">Config</span></div>
+    </div>
+  </div>
+
+  <div id="screen-config" class="screen">
+    <div class="nav"><span class="nav-logo">VaperIA</span><span class="nav-badge">Config</span></div>
+    <div class="content">
+      <div class="sl">Configuración</div>
+      <div class="cfg-card">
+        <div class="cfg-row" style="background:rgba(239,68,68,0.06)">
+          <div><div class="cfg-l">🤖 Bot IA WhatsApp</div><div class="cfg-d">⏸ Pausado — respondiendo manualmente</div></div>
+          <div class="tog off"><div class="tog-d"></div></div>
+        </div>
+        <div class="cfg-row">
+          <div><div class="cfg-l">Sugerencias inteligentes</div><div class="cfg-d">Alertas y upsell automático</div></div>
+          <div class="tog on"><div class="tog-d"></div></div>
+        </div>
+        <div class="cfg-row">
+          <div><div class="cfg-l">Tono juvenil</div><div class="cfg-d">Slang casual para WhatsApp</div></div>
+          <div class="tog on"><div class="tog-d"></div></div>
+        </div>
+      </div>
+      <div class="sl">Puntos de recogida</div>
+      <div class="pickup"><span class="pickup-n">Puerta del Sur, Alcorcón</span><span class="pickup-t">14:45–15:00</span></div>
+      <div class="pickup"><span class="pickup-n">C/ 8 de Marzo 212</span><span class="pickup-t">16:15–16:30</span></div>
+      <div style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2);border-radius:8px;padding:8px;text-align:center;font-size:11px;font-weight:700;color:#fca5a5;margin-top:10px;cursor:pointer">Cerrar sesión</div>
+    </div>
+    <div class="tab-bar">
+      <div class="tab"><span class="tab-i">📊</span><span class="tab-t">Stock</span></div>
+      <div class="tab"><span class="tab-i">💬</span><span class="tab-t">Chat</span></div>
+      <div class="tab"><span class="tab-i">🧾</span><span class="tab-t">Ventas</span></div>
+      <div class="tab"><span class="tab-i">👥</span><span class="tab-t">Clientes</span></div>
+      <div class="tab on"><span class="tab-i">⚙️</span><span class="tab-t">Config</span></div>
+    </div>
+  </div>
+
+  <div id="screen-pin" class="screen on">
+    <div style="background:#0d0d1a;border-radius:12px;padding:32px 24px;text-align:center;">
+      <div style="font-size:32px;font-weight:900;margin-bottom:6px;background:linear-gradient(135deg,#7c3aed,#38bdf8);-webkit-background-clip:text;-webkit-text-fill-color:transparent">VaperIA</div>
+      <div style="font-size:12px;color:#6b6880;margin-bottom:20px">Introduce tu PIN ➜</div>
+      <div style="display:flex;justify-content:center;gap:10px;margin-bottom:20px;">
+        <div style="width:12px;height:12px;border-radius:50%;border:1.5px solid #3a3a5c"></div>
+        <div style="width:12px;height:12px;border-radius:50%;border:1.5px solid #3a3a5c"></div>
+        <div style="width:12px;height:12px;border-radius:50%;border:1.5px solid #3a3a5c"></div>
+        <div style="width:12px;height:12px;border-radius:50%;border:1.5px solid #3a3a5c"></div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;max-width:200px;margin:0 auto;">
+        <div style="background:#1e1e2e;border-radius:10px;padding:12px;font-size:18px;font-weight:700;text-align:center;cursor:pointer">1</div>
+        <div style="background:#1e1e2e;border-radius:10px;padding:12px;font-size:18px;font-weight:700;text-align:center;cursor:pointer">2</div>
+        <div style="background:#1e1e2e;border-radius:10px;padding:12px;font-size:18px;font-weight:700;text-align:center;cursor:pointer">3</div>
+        <div style="background:#1e1e2e;border-radius:10px;padding:12px;font-size:18px;font-weight:700;text-align:center;cursor:pointer">4</div>
+        <div style="background:#1e1e2e;border-radius:10px;padding:12px;font-size:18px;font-weight:700;text-align:center;cursor:pointer">5</div>
+        <div style="background:#1e1e2e;border-radius:10px;padding:12px;font-size:18px;font-weight:700;text-align:center;cursor:pointer">6</div>
+        <div style="background:#1e1e2e;border-radius:10px;padding:12px;font-size:18px;font-weight:700;text-align:center;cursor:pointer">7</div>
+        <div style="background:#1e1e2e;border-radius:10px;padding:12px;font-size:18px;font-weight:700;text-align:center;cursor:pointer">8</div>
+        <div style="background:#1e1e2e;border-radius:10px;padding:12px;font-size:18px;font-weight:700;text-align:center;cursor:pointer">9</div>
+        <div></div>
+        <div style="background:#1e1e2e;border-radius:10px;padding:12px;font-size:18px;font-weight:700;text-align:center;cursor:pointer">0</div>
+        <div style="background:rgba(239,68,68,0.2);border-radius:10px;padding:12px;font-size:14px;text-align:center;color:#fca5a5;cursor:pointer">⌫</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function showTab(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('on'));
+  document.querySelectorAll('.vap-tab').forEach(t => t.classList.remove('on'));
+  document.getElementById('screen-' + id).classList.add('on');
+  event.target.classList.add('on');
+}
+</script>
+</body></html>

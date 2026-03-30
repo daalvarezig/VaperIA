@@ -64,4 +64,42 @@ async function saveMessage({ customerId, direction, channel, text, waMessageId }
   });
 }
 
+// Añade esta función antes del module.exports
+async function restock({ model_id, flavor_id, qty, unit_cost, notes }) {
+  const { data: current, error: fetchErr } = await supabase
+    .from('inventory')
+    .select('stock_units')
+    .eq('profile_id', PID())
+    .eq('flavor_id', flavor_id)
+    .single();
+
+  if (fetchErr) throw fetchErr;
+
+  const newStock = (current?.stock_units || 0) + Number(qty);
+
+  const { error: invError } = await supabase
+    .from('inventory')
+    .update({ stock_units: newStock })
+    .eq('profile_id', PID())
+    .eq('flavor_id', flavor_id);
+
+  if (invError) throw invError;
+  
+  // (Opcional) Log de la reposición
+  await supabase.from('restock_logs').insert({
+    profile_id: PID(), model_id, flavor_id,
+    qty: Number(qty), unit_cost: Number(unit_cost), notes
+  });
+
+  return { ok: true, new_stock: newStock };
+}
+
+// ASEGÚRATE DE QUE EL MODULE.EXPORTS QUEDE ASÍ:
+module.exports = { 
+  getInventory, getRecentSales, getSettings, 
+  getOrCreateCustomer, getConversationHistory, saveMessage,
+  restock 
+};
+
+
 module.exports = { getInventory, getRecentSales, getSettings, getOrCreateCustomer, getConversationHistory, saveMessage };

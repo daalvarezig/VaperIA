@@ -152,4 +152,14 @@ router.delete('/sales/:id', async (req, res) => {
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+router.post('/restock', async (req, res) => {
+  try {
+    const result = await db.restock(req.body);
+    res.json(result);
+  } catch (e) {
+    console.error('Error en restock:', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 module.exports = router;
