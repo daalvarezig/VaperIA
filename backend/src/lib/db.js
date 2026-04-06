@@ -20,13 +20,41 @@ async function getInventory() {
   }));
 }
 
-async function getRecentSales(days = 7) {
+/* Versión SEGURA de getRecentSales en backend/src/lib/db.js */
+async function getRecentSales(days = 60) {
   const since = new Date(Date.now() - days * 86400000).toISOString();
-  const { data, error } = await supabase.from('sales').select('*,sale_items(*)')
+  
+  // Pedimos los datos sin JOINs complejos para evitar el error 500
+  const { data: sales, error: sErr } = await supabase.from('sales').select('*, sale_items(*)')
     .eq('profile_id', PID()).gte('created_at', since).order('created_at', { ascending: false });
-  if (error) throw error;
-  return data || [];
+    
+  if (sErr) throw sErr;
+
+  // Traemos los nombres de modelo y sabor por separado para evitar fallos de JOIN
+  const { data: inventory } = await supabase.from('inventory')
+    .select('model_id, flavor_id, product_models(code), product_flavors(flavor_name)')
+    .eq('profile_id', PID());
+
+  const { data: customers } = await supabase.from('customers').select('id, display_name').eq('profile_id', PID());
+
+  return (sales || []).map(sale => {
+    const cust = customers?.find(c => c.id === sale.customer_id);
+    return {
+      ...sale,
+      customer_name: cust ? cust.display_name : 'Consumidor Final',
+      sale_items: (sale.sale_items || []).map(item => {
+        const inv = inventory?.find(i => i.model_id === item.model_id && i.flavor_id === item.flavor_id);
+        return {
+          ...item,
+          model_code: inv?.product_models?.code || '?',
+          flavor_name: inv?.product_flavors?.flavor_name || '?'
+        };
+      })
+    };
+  });
 }
+
+
 
 async function getSettings() {
   const { data } = await supabase.from('settings').select('*').eq('profile_id', PID()).single();
