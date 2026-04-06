@@ -1197,7 +1197,6 @@ function RegisterSaleModal({ inventory, customers, onClose, onConfirm }) {
   // lines = [{model, flavor, qty, price}]
   const [lines, setLines] = useState([]);
   const [step, setStep] = useState('lines'); // lines | addModel | addFlavor | addQty | customer
-  const [saleDate, setSaleDate] = useState('');
   const [curModel, setCurModel] = useState(null);
   const [curFlavor, setCurFlavor] = useState(null);
   const [curQty, setCurQty] = useState('');
@@ -1247,7 +1246,7 @@ function RegisterSaleModal({ inventory, customers, onClose, onConfirm }) {
   const confirm = async () => {
     if (lines.length === 0) return;
     setLoading(true);
-    try { await onConfirm(lines, customer, saleDate); }
+    try { await onConfirm({ lines, customer }); }
     finally { setLoading(false); }
   };
 
@@ -1296,13 +1295,6 @@ function RegisterSaleModal({ inventory, customers, onClose, onConfirm }) {
               {customer ? `👤 ${customer.name}` : '👤 Añadir cliente (opcional)'}
             </button>
           </div>
-
-          <div style={{marginBottom:'1rem'}}>
-             <input type="datetime-local" value={saleDate} onChange={e => setSaleDate(e.target.value)}
-                style={{width:'100%',padding:'0.6rem',background:'var(--surface2)',border:'1px solid var(--border2)',
-                borderRadius:'var(--radius-sm)',color:'var(--text)',fontSize:'0.85rem',outline:'none'}} />
-          </div>
-
           <div className="modal-actions">
             <button className="btn-secondary" onClick={onClose}>Cancelar</button>
             <button className="btn-confirm" onClick={confirm} disabled={lines.length === 0 || loading}>
@@ -1871,7 +1863,7 @@ function RestockModal({ inventory, onClose, onConfirm }) {
 function App() {
   const [ready, setReady] = useState(false);
   const [configured, setConfigured] = useState(false);
-  const [tab, setTab] = useState("dashboard");
+  const [tab, setTab] = useState('dashboard');
   const [inventory, setInventory] = useState([]);
   const [sales, setSales] = useState([]);
   const [settings, setSettings] = useState(null);
@@ -1880,61 +1872,125 @@ function App() {
   const [showSale, setShowSale] = useState(false);
   const [customers, setCustomers] = useState([]);
 
-  const showToast = (msg, type = "success") => setToast({ msg, type, key: Date.now() });
+  const showToast = (msg, type = 'success') => {
+    setToast({ msg, type, key: Date.now() });
+  };
+
+  // Check auth (PIN)
+  useEffect(() => {
+    if (isAuthed()) {
+      setConfigured(true);
+      loadData();
+    } else {
+      setReady(true);
+    }
+  }, []);
 
   const loadData = async () => {
     try {
-      const [inv, sal, set, cus] = await Promise.all([
-        fetch("/api/data/inventory").then(r=>r.json()),
-        fetch("/api/data/sales").then(r=>r.json()),
-        fetch("/api/data/settings").then(r=>r.json()),
-        fetch("/api/data/customers").then(r=>r.json())
+      const [invRes, salesRes, settRes, custRes] = await Promise.all([
+        fetch('/api/data/inventory').then(r=>r.json()),
+        fetch('/api/data/sales').then(r=>r.json()),
+        fetch('/api/data/settings').then(r=>r.json()),
+        fetch('/api/data/customers').then(r=>r.json()),
       ]);
-      setInventory(inv.inventory || []); setSales(sal.sales || []);
-      setSettings(set.settings || {}); setCustomers(cus.customers || []);
-    } catch (e) { showToast("Error: " + e.message, "error"); }
-    finally { setReady(true); }
+      setInventory(invRes.inventory || []);
+      setSales(salesRes.sales || []);
+      setSettings(settRes.settings || {});
+      setCustomers(custRes.customers || []);
+    } catch (e) {
+      showToast('Error cargando datos: ' + e.message, 'error');
+    } finally {
+      setReady(true);
+    }
   };
 
-  useEffect(() => { if (isAuthed()) { setConfigured(true); loadData(); } else { setReady(true); } }, []);
+  const handleSetupDone = () => {
+    setConfigured(true);
+    loadData();
+  };
 
-  const handleConfirmSale = async (lines, customer, date) => {
+    // SUSTITUYE TODA LA FUNCIÓN ORIGINAL POR ESTA:
+  const handleRestock = async ({ model_id, flavor_id, flavor_name, model_code, qty, unit_cost }) => {
     try {
-      const res = await fetch("/api/data/sales", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ lines, customer, created_at: new Date(date || new Date()).toISOString() }) });
-      if (!res.ok) throw new Error("Error al registrar");
-      await loadData(); setShowSale(false); showToast("Venta registrada");
-    } catch (e) { showToast(e.message, "error"); }
+      const res = await fetch('/api/data/restock', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model_id,
+          flavor_id,
+          qty,
+          unit_cost,
+          notes: `Reposición manual: ${model_code} ${flavor_name}`
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Error en el servidor');
+
+      setShowRestock(false); // Cierra el modal automáticamente
+      await loadData();      // Recarga el nuevo stock en la pantalla
+      showToast(`✓ +${qty} ${model_code} ${flavor_name} añadidos`);
+    } catch (e) {
+      showToast('Error al reponer: ' + e.message, 'error');
+    }
   };
 
-  const handleDeleteSale = async (id) => {
-    if (!confirm("¿Borrar?")) return;
+
+  const handleSale = async ({ lines, customer }) => {
     try {
-      await fetch("/api/data/sales/" + id, { method: "DELETE" });
-      await loadData(); showToast("Borrado y stock recuperado");
-    } catch (e) { showToast(e.message, "error"); }
+      const res = await fetch('/api/data/sales', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lines, customer }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Error al registrar');
+      setShowSale(false);
+      await loadData();
+      const total = lines.reduce((a, l) => a + l.qty * l.price, 0);
+      showToast(`✓ Venta registrada — ${total.toFixed(2)}€`);
+    } catch(e) {
+      showToast('Error: ' + e.message, 'error');
+    }
   };
 
-  const handleRestock = async (data) => {
+  const handleDeleteSale = async (saleId) => {
+    if (!confirm('¿Borrar esta venta?')) return;
     try {
-      const res = await fetch("/api/data/restock", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
-      if (!res.ok) throw new Error("Error al añadir stock");
-      await loadData(); showToast("Stock actualizado");
-    } catch (e) { showToast(e.message, "error"); }
+      const res = await fetch('/api/data/sales/' + saleId, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Error al borrar');
+      await loadData();
+      showToast('✓ Venta borrada');
+    } catch(e) {
+      showToast('Error: ' + e.message, 'error');
+    }
   };
 
-  const handleSetupDone = () => { setConfigured(true); loadData(); };
-  const handleLogout = () => { localSignOut(); window.location.reload(); };
+  const handleLogout = () => {
+    localStorage.removeItem('vpr_auth');
+    location.reload();
+  };
 
-  if (!ready) return <div style={{height:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"var(--bg)",color:"white"}}><h2>Cargando...</h2></div>;
+  if (!ready) {
+    return (
+      <div className="loading-screen">
+        <div className="spinner" />
+        <div className="loading-text">Cargando VaperIA...</div>
+      </div>
+    );
+  }
 
-  if (!configured) return <SetupScreen onDone={handleSetupDone} />;
+  if (!configured) {
+    return <SetupScreen onDone={handleSetupDone} />;
+  }
 
   const TABS = [
-    { id: 'dashboard', icon: '📊', label: 'Dashboard' },
-    { id: 'sales', icon: '📝', label: 'Ventas' },
+    { id: 'dashboard', icon: '📊', label: 'Stock' },
+    { id: 'chat',      icon: '💬', label: 'Chat' },
+    { id: 'sales',     icon: '🧾', label: 'Ventas' },
     { id: 'customers', icon: '👥', label: 'Clientes' },
-    { id: 'chat', icon: '💬', label: 'IA Bot' },
-    { id: 'settings', icon: '⚙️', label: 'Ajustes' },
+    { id: 'settings',  icon: '⚙️', label: 'Config' },
   ];
 
   return (
@@ -1985,14 +2041,16 @@ function App() {
         />
       )}
 
+      
       {showSale && (
         <RegisterSaleModal
           inventory={inventory}
           customers={customers}
-          onClose={() => setShowSale(false)}
+          onCancel={() => setShowSale(false)}
           onConfirm={handleConfirmSale}
         />
       )}
+
 
       {toast && (
         <Toast key={toast.key} msg={toast.msg} type={toast.type} onDone={() => setToast(null)} />
