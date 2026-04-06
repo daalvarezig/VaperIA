@@ -1,0 +1,27 @@
+name: Deploy VaperIA PWA
+
+on:
+  push:
+    branches: [ main, master ]
+
+jobs:
+  deploy:
+    name: 🚀 Despliegue en Servidor
+    runs-on: ubuntu-latest
+    steps:
+    - name: 📥 Checkout del código
+      uses: actions/checkout@v3
+
+    - name: 🛰️ Conectar por SSH y Desplegar
+      uses: appleboy/ssh-action@master
+      with:
+        host: ${{ secrets.SERVER_HOST }}
+        username: ${{ secrets.SERVER_USER }}
+        key: ${{ secrets.SSH_PRIVATE_KEY }}
+        port: 22
+        script: |
+          cd /opt/itopy.ai/apps/VaperIA
+          git fetch origin
+          git reset --hard origin/main
+          docker compose up -d --build pwa
+          echo "✅ ¡VaperIA desplegada con éxito!"
