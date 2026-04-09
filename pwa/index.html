@@ -1937,7 +1937,7 @@ function App() {
   };
 
 
-  const handleConfirmSale = async (lines, customer, date) => {
+  const handleConfirmSale = async ({ lines, customer, date }) => {
     try {
       const res = await fetch('/api/data/sales', {
         method: 'POST',
