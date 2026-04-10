@@ -107,6 +107,47 @@ router.post('/sales', async (req, res) => {
   }
 });
 
+// 5b. CREAR CLIENTE MANUAL
+router.post('/customers', async (req, res) => {
+  const { name, phone, notes } = req.body;
+  if (!name) return res.status(400).json({ error: 'name requerido' });
+  try {
+    const { data, error } = await supabase.from('customers').insert({
+      profile_id: PID(), display_name: name,
+      wa_phone: phone || null, notes: notes || null,
+    }).select().single();
+    if (error) throw error;
+    res.json({ ok: true, customer: data });
+  } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// 5c. EDITAR CLIENTE
+router.patch('/customers/:id', async (req, res) => {
+  const { name, phone, notes } = req.body;
+  try {
+    const update = {};
+    if (name !== undefined) update.display_name = name;
+    if (phone !== undefined) update.wa_phone = phone || null;
+    if (notes !== undefined) update.notes = notes || null;
+    const { error } = await supabase.from('customers').update(update)
+      .eq('id', req.params.id).eq('profile_id', PID());
+    if (error) throw error;
+    res.json({ ok: true });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// 5d. BORRAR CLIENTE
+router.delete('/customers/:id', async (req, res) => {
+  try {
+    const { error } = await supabase.from('customers').delete()
+      .eq('id', req.params.id).eq('profile_id', PID());
+    if (error) throw error;
+    res.json({ ok: true });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 // 6. EDITAR CLIENTE EN VENTA
 router.patch('/sales/:id', async (req, res) => {
   try {

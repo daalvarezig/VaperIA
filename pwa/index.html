@@ -1433,11 +1433,41 @@ function RegisterSaleModal({ inventory, customers, onClose, onConfirm }) {
 function CustomersPage({ customers, sales, onRefresh }) {
   const [selected, setSelected] = React.useState(null);
   const [search, setSearch] = React.useState('');
+  const [showAdd, setShowAdd] = React.useState(false);
+  const [newName, setNewName] = React.useState('');
+  const [newPhone, setNewPhone] = React.useState('');
+  const [newNotes, setNewNotes] = React.useState('');
+  const [saving, setSaving] = React.useState(false);
+  const [editing, setEditing] = React.useState(false);
+  const [editName, setEditName] = React.useState('');
+  const [editPhone, setEditPhone] = React.useState('');
+  const [editNotes, setEditNotes] = React.useState('');
+  const [actioning, setActioning] = React.useState(false);
 
   const filtered = customers.filter(c =>
     (c.display_name||'').toLowerCase().includes(search.toLowerCase()) ||
     (c.wa_phone||'').includes(search)
   );
+
+  const handleAddCustomer = async () => {
+    if (!newName.trim()) return;
+    setSaving(true);
+    try {
+      const r = await fetch('/api/data/customers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newName.trim(), phone: newPhone.trim() || null, notes: newNotes.trim() || null }),
+      });
+      if (!r.ok) throw new Error('Error al guardar');
+      setShowAdd(false);
+      setNewName(''); setNewPhone(''); setNewNotes('');
+      onRefresh();
+    } catch(e) {
+      alert(e.message);
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const getStats = (customerId) => {
     const cSales = sales.filter(s => s.customer_id === customerId);
@@ -1457,14 +1487,85 @@ function CustomersPage({ customers, sales, onRefresh }) {
     const stats = getStats(selected);
     const cSales = sales.filter(s => s.customer_id === selected)
       .sort((a,b) => new Date(b.created_at)-new Date(a.created_at));
+
+    const handleEdit = async () => {
+      if (!editName.trim()) return;
+      setActioning(true);
+      try {
+        const r = await fetch(`/api/data/customers/${c.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: editName.trim(), phone: editPhone.trim()||null, notes: editNotes.trim()||null }),
+        });
+        if (!r.ok) throw new Error('Error al guardar');
+        setEditing(false);
+        onRefresh();
+      } catch(e) { alert(e.message); }
+      finally { setActioning(false); }
+    };
+
+    const handleDelete = async () => {
+      if (!confirm(`¿Borrar a ${c?.display_name}? Esta acción no se puede deshacer.`)) return;
+      setActioning(true);
+      try {
+        const r = await fetch(`/api/data/customers/${c.id}`, { method: 'DELETE' });
+        if (!r.ok) throw new Error('Error al borrar');
+        setSelected(null);
+        onRefresh();
+      } catch(e) { alert(e.message); }
+      finally { setActioning(false); }
+    };
+
     return (
       <div className="page-content">
         <div className="dashboard">
-          <button onClick={() => setSelected(null)} style={{
-            background:'none',border:'none',color:'var(--accent3)',
-            fontSize:'0.85rem',fontWeight:'600',cursor:'pointer',marginBottom:'1rem',padding:0
-          }}>← Volver</button>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'1rem'}}>
+            <button onClick={() => setSelected(null)} style={{
+              background:'none',border:'none',color:'var(--accent3)',
+              fontSize:'0.85rem',fontWeight:'600',cursor:'pointer',padding:0
+            }}>← Volver</button>
+            <div style={{display:'flex',gap:'0.5rem'}}>
+              <button onClick={() => { setEditing(true); setEditName(c?.display_name||''); setEditPhone(c?.wa_phone||''); setEditNotes(c?.notes||''); }}
+                style={{padding:'0.4rem 0.8rem',borderRadius:'var(--radius)',background:'var(--surface)',
+                  border:'1px solid var(--border2)',color:'var(--text2)',cursor:'pointer',fontSize:'0.8rem'}}>
+                ✏️ Editar
+              </button>
+              <button onClick={handleDelete} disabled={actioning}
+                style={{padding:'0.4rem 0.8rem',borderRadius:'var(--radius)',background:'none',
+                  border:'1px solid #e53935',color:'#e53935',cursor:'pointer',fontSize:'0.8rem'}}>
+                🗑 Borrar
+              </button>
+            </div>
+          </div>
 
+          {editing ? (
+            <div style={{background:'var(--surface)',borderRadius:'var(--radius)',padding:'1rem',marginBottom:'1rem'}}>
+              <input value={editName} onChange={e=>setEditName(e.target.value)} placeholder="Nombre *"
+                style={{width:'100%',padding:'0.6rem 0.8rem',borderRadius:'var(--radius)',
+                  background:'var(--bg)',border:'1px solid var(--border2)',
+                  color:'var(--text)',fontSize:'0.9rem',marginBottom:'0.5rem',outline:'none'}} />
+              <input value={editPhone} onChange={e=>setEditPhone(e.target.value)} placeholder="Teléfono (sin +)"
+                style={{width:'100%',padding:'0.6rem 0.8rem',borderRadius:'var(--radius)',
+                  background:'var(--bg)',border:'1px solid var(--border2)',
+                  color:'var(--text)',fontSize:'0.9rem',marginBottom:'0.5rem',outline:'none'}} />
+              <input value={editNotes} onChange={e=>setEditNotes(e.target.value)} placeholder="Notas"
+                style={{width:'100%',padding:'0.6rem 0.8rem',borderRadius:'var(--radius)',
+                  background:'var(--bg)',border:'1px solid var(--border2)',
+                  color:'var(--text)',fontSize:'0.9rem',marginBottom:'0.75rem',outline:'none'}} />
+              <div style={{display:'flex',gap:'0.5rem',justifyContent:'flex-end'}}>
+                <button onClick={() => setEditing(false)}
+                  style={{padding:'0.5rem 1rem',borderRadius:'var(--radius)',background:'none',
+                    border:'1px solid var(--border2)',color:'var(--text2)',cursor:'pointer'}}>
+                  Cancelar
+                </button>
+                <button onClick={handleEdit} disabled={actioning || !editName.trim()}
+                  style={{padding:'0.5rem 1rem',borderRadius:'var(--radius)',background:'var(--accent)',
+                    border:'none',color:'#fff',cursor:'pointer',opacity:(actioning||!editName.trim())?0.6:1}}>
+                  {actioning ? 'Guardando...' : 'Guardar'}
+                </button>
+              </div>
+            </div>
+          ) : (
           <div style={{background:'var(--surface)',borderRadius:'var(--radius)',padding:'1.25rem',marginBottom:'1rem'}}>
             <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
               <div>
@@ -1475,6 +1576,7 @@ function CustomersPage({ customers, sales, onRefresh }) {
               <div style={{fontSize:'1.5rem'}}>👤</div>
             </div>
           </div>
+          )}
 
           <div className="stats-grid" style={{marginBottom:'1rem'}}>
             <div className="stat-card green">
@@ -1524,11 +1626,56 @@ function CustomersPage({ customers, sales, onRefresh }) {
   return (
     <div className="page-content">
       <div className="dashboard">
-        <input value={search} onChange={e=>setSearch(e.target.value)}
-          placeholder="Buscar por nombre o teléfono..."
-          style={{width:'100%',padding:'0.75rem 1rem',borderRadius:'var(--radius)',
-            background:'var(--surface)',border:'1px solid var(--border2)',
-            color:'var(--text)',fontSize:'0.9rem',marginBottom:'1rem',outline:'none'}} />
+        <div style={{display:'flex',gap:'0.5rem',marginBottom:'1rem'}}>
+          <input value={search} onChange={e=>setSearch(e.target.value)}
+            placeholder="Buscar por nombre o teléfono..."
+            style={{flex:1,padding:'0.75rem 1rem',borderRadius:'var(--radius)',
+              background:'var(--surface)',border:'1px solid var(--border2)',
+              color:'var(--text)',fontSize:'0.9rem',outline:'none'}} />
+          <button onClick={() => setShowAdd(true)}
+            style={{padding:'0.75rem 1rem',borderRadius:'var(--radius)',
+              background:'var(--accent)',border:'none',color:'#fff',
+              fontSize:'1.2rem',cursor:'pointer',lineHeight:1,flexShrink:0}}>
+            ＋
+          </button>
+        </div>
+
+        {showAdd && (
+          <div style={{background:'var(--surface)',border:'1px solid var(--border)',
+            borderRadius:'var(--radius)',padding:'1rem',marginBottom:'1rem'}}>
+            <div style={{fontWeight:'700',marginBottom:'0.75rem',color:'var(--text)'}}>Nuevo cliente</div>
+            <input value={newName} onChange={e=>setNewName(e.target.value)}
+              placeholder="Nombre *"
+              style={{width:'100%',padding:'0.6rem 0.8rem',borderRadius:'var(--radius)',
+                background:'var(--bg)',border:'1px solid var(--border2)',
+                color:'var(--text)',fontSize:'0.9rem',marginBottom:'0.5rem',outline:'none'}} />
+            <input value={newPhone} onChange={e=>setNewPhone(e.target.value)}
+              placeholder="Teléfono (sin +)"
+              style={{width:'100%',padding:'0.6rem 0.8rem',borderRadius:'var(--radius)',
+                background:'var(--bg)',border:'1px solid var(--border2)',
+                color:'var(--text)',fontSize:'0.9rem',marginBottom:'0.5rem',outline:'none'}} />
+            <input value={newNotes} onChange={e=>setNewNotes(e.target.value)}
+              placeholder="Notas (opcional)"
+              style={{width:'100%',padding:'0.6rem 0.8rem',borderRadius:'var(--radius)',
+                background:'var(--bg)',border:'1px solid var(--border2)',
+                color:'var(--text)',fontSize:'0.9rem',marginBottom:'0.75rem',outline:'none'}} />
+            <div style={{display:'flex',gap:'0.5rem',justifyContent:'flex-end'}}>
+              <button onClick={() => { setShowAdd(false); setNewName(''); setNewPhone(''); setNewNotes(''); }}
+                style={{padding:'0.5rem 1rem',borderRadius:'var(--radius)',
+                  background:'none',border:'1px solid var(--border2)',color:'var(--text2)',cursor:'pointer'}}>
+                Cancelar
+              </button>
+              <button onClick={handleAddCustomer} disabled={saving || !newName.trim()}
+                style={{padding:'0.5rem 1rem',borderRadius:'var(--radius)',
+                  background:'var(--accent)',border:'none',color:'#fff',
+                  cursor: (saving||!newName.trim()) ? 'not-allowed' : 'pointer',
+                  opacity: (saving||!newName.trim()) ? 0.6 : 1}}>
+                {saving ? 'Guardando...' : 'Guardar'}
+              </button>
+            </div>
+          </div>
+        )}
+
         {filtered.length === 0 ? (
           <div className="empty-state"><div className="empty-icon">👥</div><div className="empty-text">Sin clientes registrados</div></div>
         ) : filtered.map(c => {
